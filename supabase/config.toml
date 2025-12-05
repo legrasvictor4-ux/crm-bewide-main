@@ -1,0 +1,13 @@
+project_id = "jfqbpwdciumtrzbowwdk"
+
+[functions.analyze-restaurant-image]
+verify_jwt = false
+
+[functions.generate-smart-pitch]
+verify_jwt = false
+
+[functions.analyze-voice-data]
+verify_jwt = false
+
+[functions.predict-success-score]
+verify_jwt = false
