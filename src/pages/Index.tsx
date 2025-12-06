@@ -5,11 +5,13 @@ import ProspectionList from "@/components/ProspectionList";
 import StatsCard from "@/components/StatsCard";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import AIChatWidget from "@/components/AIChatWidget";
 
 const Index = () => {
   const [showRecorder, setShowRecorder] = useState(false);
 
   return (
+    <>
     <main className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50">
@@ -129,7 +131,9 @@ const Index = () => {
       {showRecorder && (
         <VoiceRecorder onClose={() => setShowRecorder(false)} />
       )}
+      <AIChatWidget />
     </main>
+    </>
   );
 };
 

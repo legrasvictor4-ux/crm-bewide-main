@@ -20,10 +20,10 @@ interface Prospect {
 }
 
 const mockProspects: Prospect[] = [
-  { id: "1", name: "Jean Dupont", company: "Le Petit Bistrot", phone: "+33 6 12 34 56 78", score: 95, lastContact: "Il y a 2 jours", timezone: "Europe/Paris", bestTime: "Maintenant", dealValue: "2,500€/mois", status: "hot" },
-  { id: "2", name: "Marie Martin", company: "Café de Flore", phone: "+33 6 98 76 54 32", score: 87, lastContact: "Il y a 5 jours", timezone: "Europe/Paris", bestTime: "Dans 30min", dealValue: "1,800€/mois", status: "hot" },
-  { id: "3", name: "Pierre Durand", company: "La Bonne Table", phone: "+33 6 45 67 89 01", score: 72, lastContact: "Il y a 1 semaine", timezone: "Europe/Paris", bestTime: "14h00", dealValue: "3,200€/mois", status: "warm" },
-  { id: "4", name: "Sophie Bernard", company: "Chez Marcel", phone: "+33 6 11 22 33 44", score: 65, lastContact: "Il y a 3 jours", timezone: "Europe/Paris", bestTime: "16h30", dealValue: "1,500€/mois", status: "warm" },
+  { id: "1", name: "Patronne", company: "Le Bidule", phone: "+33 6 12 34 56 78", score: 95, lastContact: "Il y a 2 jours", timezone: "Europe/Paris", bestTime: "10h30-12h", dealValue: "2,500€/mois", status: "hot" },
+  { id: "2", name: "Patron + épouse", company: "Le Comptoir du Renne", phone: "+33 6 98 76 54 32", score: 87, lastContact: "Aujourd'hui", timezone: "Europe/Paris", bestTime: "11h00", dealValue: "3,800€/mois", status: "hot" },
+  { id: "3", name: "Patronne", company: "Les Funambules", phone: "+33 6 45 67 89 01", score: 35, lastContact: "Il y a 1 semaine", timezone: "Europe/Paris", bestTime: "N/A", dealValue: "0€", status: "cold" },
+  { id: "4", name: "Patronne", company: "Le Caffé Latte", phone: "+33 6 11 22 33 44", score: 65, lastContact: "Il y a 3 jours", timezone: "Europe/Paris", bestTime: "Dans 2 mois", dealValue: "4,000€/mois", status: "warm" },
 ];
 
 const SmartDialQueue = () => {
