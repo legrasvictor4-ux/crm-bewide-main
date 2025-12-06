@@ -23,14 +23,14 @@ interface Activity {
 }
 
 const mockActivities: Activity[] = [
-  { id: "1", type: "call", prospect: "Jean Dupont", company: "Le Petit Bistrot", summary: "Appel découverte - très intéressé", details: "Discussion sur les besoins digitaux. Intéressé par Instagram et Google Ads.", timestamp: "Il y a 5 min", duration: "12:34", sentiment: "positive", autoLogged: true },
-  { id: "2", type: "email", prospect: "Marie Martin", company: "Café de Flore", summary: "Envoi de la proposition commerciale", details: "Proposition à 1800€/mois incluant gestion réseaux sociaux + publicité.", timestamp: "Il y a 1h", autoLogged: true },
-  { id: "3", type: "whatsapp", prospect: "Pierre Durand", company: "La Bonne Table", summary: "Confirmation RDV jeudi 14h", details: "RDV confirmé pour présentation détaillée.", timestamp: "Il y a 2h", sentiment: "positive", autoLogged: true },
-  { id: "4", type: "linkedin", prospect: "Sophie Bernard", company: "Chez Marcel", summary: "Message de connexion accepté", details: "Sophie a accepté la demande de connexion et a répondu positivement.", timestamp: "Il y a 3h", autoLogged: true },
-  { id: "5", type: "objection", prospect: "Jean Dupont", company: "Le Petit Bistrot", summary: "Objection prix", details: "Trouve le prix élevé par rapport à son budget initial de 800€.", timestamp: "Il y a 5 min", sentiment: "negative", autoLogged: true },
-  { id: "6", type: "meeting", prospect: "Marie Martin", company: "Café de Flore", summary: "RDV pris : Mardi 10h", details: "Présentation complète des services avec démonstration.", timestamp: "Il y a 4h", autoLogged: true },
-  { id: "7", type: "document", prospect: "Pierre Durand", company: "La Bonne Table", summary: "Catalogue envoyé", details: "Envoi du catalogue services 2024 + études de cas restaurants.", timestamp: "Hier", autoLogged: true },
-  { id: "8", type: "sms", prospect: "Sophie Bernard", company: "Chez Marcel", summary: "Rappel RDV demain", details: "SMS automatique de rappel pour le RDV de demain 15h.", timestamp: "Hier", autoLogged: true },
+  { id: "1", type: "call", prospect: "Patronne", company: "Le Bidule", summary: "Appel découverte - à recontacter", details: "La patronne était absente. Le responsable a indiqué qu'elle gérait elle-même l'Instagram, plutôt mal selon lui.", timestamp: "Il y a 2h", duration: "5:12", sentiment: "neutral", autoLogged: true },
+  { id: "2", type: "email", prospect: "Patron + épouse", company: "Le Comptoir du Renne", summary: "Envoi du devis personnalisé", details: "Proposition à 3800€/mois incluant stratégie IA complète et gestion des réseaux sociaux.", timestamp: "Aujourd'hui, 11:00", autoLogged: true },
+  { id: "3", type: "whatsapp", prospect: "Patronne", company: "Les Funambules", summary: "Refus de l'offre", details: "Pas intéressée par un community manager pour le moment.", timestamp: "Hier, 15:30", sentiment: "negative", autoLogged: true },
+  { id: "4", type: "meeting", prospect: "Patronne", company: "Le Caffé Latte", summary: "RDV planifié dans 2 mois", details: "Déjà une agence à 4000€/mois. À recontacter pour démonstration des fonctionnalités IA.", timestamp: "Demain, 10:00", autoLogged: true },
+  { id: "5", type: "call", prospect: "Patron + épouse", company: "Le Comptoir du Renne", summary: "RDV confirmé pour demain 11h", details: "RDV avec l'épouse qui gère la communication. Très intéressée par les solutions IA.", timestamp: "Il y a 30 min", duration: "8:45", sentiment: "positive", autoLogged: true },
+  { id: "6", type: "email", prospect: "Patronne", company: "Le Bidule", summary: "Relance après appel manqué", details: "Proposition de rendez-vous téléphonique demain entre 10h30 et 12h.", timestamp: "Aujourd'hui, 9:15", autoLogged: true },
+  { id: "7", type: "document", prospect: "Patronne", company: "Le Caffé Latte", summary: "Présentation IA envoyée", details: "Envoi de la présentation détaillée des solutions IA pour la restauration.", timestamp: "Hier, 16:45", autoLogged: true },
+  { id: "8", type: "sms", prospect: "Patron + épouse", company: "Le Comptoir du Renne", summary: "Rappel RDV demain", details: "SMS automatique de rappel pour le RDV de demain 11h.", timestamp: "Aujourd'hui, 18:00", autoLogged: true },
 ];
 
 const getActivityIcon = (type: string) => {

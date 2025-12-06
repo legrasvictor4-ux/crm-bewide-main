@@ -36,7 +36,7 @@ const mockData: Prospection[] = [
   },
   {
     id: 3,
-    name: "Des Funambules",
+    name: "Les Funambules",
     arrondissement: "11ème",
     status: "lost",
     contact: "Patronne",
@@ -45,7 +45,7 @@ const mockData: Prospection[] = [
   },
   {
     id: 4,
-    name: "Cafe Latte",
+    name: "Le Caffé Latte",
     arrondissement: "10ème",
     status: "pending",
     contact: "Patronne",
