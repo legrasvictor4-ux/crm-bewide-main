@@ -1,11 +1,18 @@
 import { useState } from "react";
-import { MapPin, Clock, CheckCircle2, AlertCircle, XCircle, Phone } from "lucide-react";
+import { MapPin, Clock, CheckCircle2, AlertCircle, XCircle, Phone, Mail, Building, X, Map } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface Prospection {
   id: number;
   name: string;
   arrondissement: string;
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  phone?: string;
+  email?: string;
   status: "success" | "pending" | "lost" | "to_recontact";
   contact?: string;
   nextAction?: string;
@@ -18,6 +25,11 @@ const mockData: Prospection[] = [
     id: 1,
     name: "Le Comptoir du Renne",
     arrondissement: "3ème",
+    address: "42 Rue de Bretagne",
+    postalCode: "75003",
+    city: "Paris",
+    phone: "01 23 45 67 89",
+    email: "contact@comptoirdelerenne.fr",
     status: "success",
     contact: "Patron + épouse",
     nextAction: "RDV demain 11h",
@@ -57,6 +69,7 @@ const mockData: Prospection[] = [
 
 const ProspectionList = () => {
   const [filter, setFilter] = useState<string>("all");
+  const [selectedProspection, setSelectedProspection] = useState<Prospection | null>(null);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -108,7 +121,83 @@ const ProspectionList = () => {
     : mockData.filter(p => p.status === filter);
 
   return (
-    <div className="bg-card rounded-xl shadow-md border border-border">
+    <div className="relative bg-card rounded-xl shadow-md border border-border">
+      {/* Client Detail Panel */}
+      {selectedProspection && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setSelectedProspection(null)}>
+          <div className="w-full max-w-md bg-background h-full overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="p-4 border-b flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Détails du client</h3>
+              <Button variant="ghost" size="icon" onClick={() => setSelectedProspection(null)}>
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+            <ScrollArea className="flex-1 p-6">
+              <div className="space-y-6">
+                <div className="flex items-start gap-4">
+                  <div className="bg-accent/20 p-3 rounded-lg">
+                    <Building className="h-6 w-6 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold">{selectedProspection.name}</h2>
+                    <p className="text-muted-foreground">{selectedProspection.contact}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3 text-sm">
+                    <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Adresse</p>
+                      <p className="text-muted-foreground">
+                        {selectedProspection.address}<br />
+                        {selectedProspection.postalCode} {selectedProspection.city}
+                      </p>
+                    </div>
+                  </div>
+
+                  {selectedProspection.phone && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Téléphone</p>
+                        <p className="text-muted-foreground">{selectedProspection.phone}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedProspection.email && (
+                    <div className="flex items-center gap-3 text-sm">
+                      <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">Email</p>
+                        <p className="text-muted-foreground">{selectedProspection.email}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 border-t">
+                  <h4 className="font-medium mb-2">Notes</h4>
+                  <div className="bg-secondary/50 p-4 rounded-lg">
+                    <p className="text-sm">{selectedProspection.notes}</p>
+                  </div>
+                </div>
+
+                {selectedProspection.nextAction && (
+                  <div className="flex items-center gap-3 p-3 bg-accent/10 rounded-lg">
+                    <Clock className="h-5 w-5 text-accent flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium">Prochaine action</p>
+                      <p className="text-sm">{selectedProspection.nextAction}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <div className="p-6 border-b border-border">
         <h2 className="text-xl font-bold text-foreground mb-4">Prospections</h2>
@@ -162,6 +251,7 @@ const ProspectionList = () => {
           <div
             key={prospection.id}
             className="p-6 hover:bg-secondary/50 transition-colors cursor-pointer"
+            onClick={() => setSelectedProspection(prospection)}
           >
             <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex items-start gap-3 flex-1 min-w-0">
