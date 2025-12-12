@@ -112,3 +112,5 @@ Si vous obtenez une réponse (même vide `{"clients": []}`), la table existe!
 - Voir `SETUP_DATABASE.md` pour plus de détails
 - Voir `README_IMPORT_EXCEL.md` pour l'utilisation complète
 - Vérifier les logs du backend pour les erreurs
+
+

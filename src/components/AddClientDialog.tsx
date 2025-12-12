@@ -227,3 +227,5 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
 };
 
 export default AddClientDialog;
+
+

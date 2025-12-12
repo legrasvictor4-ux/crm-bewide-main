@@ -72,3 +72,5 @@ console.log('2. Allez dans votre projet Supabase');
 console.log('3. Ouvrez SQL Editor');
 console.log('4. Collez le SQL et exécutez-le');
 console.log('\n');
+
+

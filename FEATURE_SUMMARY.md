@@ -173,3 +173,5 @@ npm run dev:frontend
 - ✅ UI moderne avec shadcn/ui
 - ✅ Gestion d'erreurs complète
 - ✅ Pas de mocks
+
+

@@ -204,3 +204,5 @@ Excel → API (parsing XLSX) → DB (table clients) → Prospection list (requê
 3. `src/integrations/supabase/types.ts` - Ajouter schéma clients
 4. `package.json` - Ajouter dépendance xlsx
 5. Supprimer toutes les données mockées des composants
+
+

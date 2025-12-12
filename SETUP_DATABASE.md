@@ -154,3 +154,5 @@ Si vous obtenez une réponse (même vide), la table existe!
 
 Le fichier SQL complet est disponible dans:
 `supabase/migrations/001_create_clients_table.sql`
+
+

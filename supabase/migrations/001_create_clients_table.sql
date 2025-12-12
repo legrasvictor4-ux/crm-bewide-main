@@ -62,3 +62,5 @@ CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON public.clients
 COMMENT ON TABLE public.clients IS 'Table principale pour stocker les clients/prospects importés';
 COMMENT ON COLUMN public.clients.enrichment_data IS 'Données complètes d''enrichissement OpenAI (JSON)';
 COMMENT ON COLUMN public.clients.lead_score IS 'Score de qualité du lead (0-100)';
+
+
