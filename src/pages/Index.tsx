@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Mic, Calendar, Map, Users, TrendingUp, Clock, Sparkles, Zap, ArrowRight } from "lucide-react";
+import { Mic, Calendar, Map, Users, TrendingUp, Clock, Sparkles, Zap, ArrowRight, FileSpreadsheet } from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import ProspectionList from "@/components/ProspectionList";
+import ExcelUpload from "@/components/ExcelUpload";
 import StatsCard from "@/components/StatsCard";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,13 @@ import AIChatWidget from "@/components/AIChatWidget";
 
 const Index = () => {
   const [showRecorder, setShowRecorder] = useState(false);
+  const [showExcelUpload, setShowExcelUpload] = useState(false);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleImportSuccess = () => {
+    setRefreshTrigger(prev => prev + 1);
+    setShowExcelUpload(false);
+  };
 
   return (
     <>
@@ -64,7 +72,7 @@ const Index = () => {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <ProspectionList />
+            <ProspectionList refreshTrigger={refreshTrigger} />
           </div>
           
           <div className="space-y-6">
@@ -73,8 +81,15 @@ const Index = () => {
               <h3 className="text-lg font-semibold text-foreground mb-4">Actions rapides</h3>
               <div className="space-y-3">
                 <button
-                  onClick={() => setShowRecorder(true)}
+                  onClick={() => setShowExcelUpload(true)}
                   className="w-full btn-primary flex items-center justify-center gap-3"
+                >
+                  <FileSpreadsheet className="h-5 w-5" />
+                  Importer un fichier Excel
+                </button>
+                <button
+                  onClick={() => setShowRecorder(true)}
+                  className="w-full btn-secondary flex items-center justify-center gap-3"
                 >
                   <Mic className="h-5 w-5" />
                   Nouvelle prospection vocale
@@ -131,6 +146,23 @@ const Index = () => {
       {showRecorder && (
         <VoiceRecorder onClose={() => setShowRecorder(false)} />
       )}
+
+      {/* Excel Upload Modal */}
+      {showExcelUpload && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowExcelUpload(false)}>
+          <div className="bg-background rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6">
+              <ExcelUpload onImportSuccess={handleImportSuccess} />
+              <div className="mt-4 flex justify-end">
+                <Button variant="outline" onClick={() => setShowExcelUpload(false)}>
+                  Fermer
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AIChatWidget />
     </main>
     </>
