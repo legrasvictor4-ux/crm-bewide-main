@@ -1,75 +1,80 @@
-import { useState } from "react";
-import { MapPin, Clock, CheckCircle2, AlertCircle, XCircle, Phone, Mail, Building, X, Map } from "lucide-react";
+import { useState, useEffect } from "react";
+import { MapPin, Clock, CheckCircle2, AlertCircle, XCircle, Phone, Mail, Building, X, Map, Loader2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import AddClientDialog from "@/components/AddClientDialog";
 
 interface Prospection {
-  id: number;
+  id: string;
   name: string;
-  arrondissement: string;
-  address?: string;
-  postalCode?: string;
-  city?: string;
-  phone?: string;
-  email?: string;
-  status: "success" | "pending" | "lost" | "to_recontact";
-  contact?: string;
-  nextAction?: string;
+  arrondissement: string | null;
+  address?: string | null;
+  postalCode?: string | null;
+  city?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  status: "success" | "pending" | "lost" | "to_recontact" | "new";
+  contact?: string | null;
+  nextAction?: string | null;
   date: string;
-  notes: string;
+  notes: string | null;
 }
 
-const mockData: Prospection[] = [
-  {
-    id: 1,
-    name: "Le Comptoir du Renne",
-    arrondissement: "3ème",
-    address: "42 Rue de Bretagne",
-    postalCode: "75003",
-    city: "Paris",
-    phone: "01 23 45 67 89",
-    email: "contact@comptoirdelerenne.fr",
-    status: "success",
-    contact: "Patron + épouse",
-    nextAction: "RDV demain 11h",
-    date: "2025-11-30",
-    notes: "Excellent rendez-vous, très intéressé par l'IA. RDV avec l'épouse qui gère la com.",
-  },
-  {
-    id: 2,
-    name: "Le Bidule",
-    arrondissement: "11ème",
-    status: "to_recontact",
-    contact: "Patronne",
-    nextAction: "Revenir 10h30-12h",
-    date: "2025-11-30",
-    notes: "Patronne absente. Responsable indique qu'elle gère l'Instagram elle-même, plutôt mal selon lui.",
-  },
-  {
-    id: 3,
-    name: "Les Funambules",
-    arrondissement: "11ème",
-    status: "lost",
-    contact: "Patronne",
-    date: "2025-11-30",
-    notes: "Pas du tout intéressée par un community manager. Opportunité perdue pour l'instant.",
-  },
-  {
-    id: 4,
-    name: "Le Caffé Latte",
-    arrondissement: "10ème",
-    status: "pending",
-    contact: "Patronne",
-    nextAction: "Repasser dans 2 mois",
-    date: "2025-11-30",
-    notes: "Déjà une agence à 4000€/mois. Très intéressée par l'IA, à recontacter quand les fonctionnalités seront développées.",
-  },
-];
-
-const ProspectionList = () => {
+const ProspectionList = ({ refreshTrigger }: { refreshTrigger?: number }) => {
   const [filter, setFilter] = useState<string>("all");
   const [selectedProspection, setSelectedProspection] = useState<Prospection | null>(null);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+
+  // Fetch clients from database
+  const { data: clientsData, isLoading, error, refetch } = useQuery({
+    queryKey: ['clients', filter, refreshTrigger],
+    queryFn: async () => {
+      let query = supabase
+        .from('clients')
+        .select('*')
+        .order('date_created', { ascending: false });
+
+      if (filter !== 'all') {
+        query = query.eq('status', filter);
+      }
+
+      const { data, error } = await query;
+
+      if (error) {
+        throw error;
+      }
+
+      // Transform database format to Prospection format
+      return (data || []).map((client): Prospection => ({
+        id: client.id,
+        name: client.company || `${client.first_name || ''} ${client.last_name}`.trim() || 'Client sans nom',
+        arrondissement: client.arrondissement || null,
+        address: client.address || null,
+        postalCode: client.postal_code || null,
+        city: client.city || null,
+        phone: client.phone || null,
+        email: client.email || null,
+        status: client.status as Prospection['status'],
+        contact: client.contact || null,
+        nextAction: client.next_action || null,
+        date: client.date_created || new Date().toISOString(),
+        notes: client.notes || null,
+      }));
+    },
+  });
+
+  // Refetch when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger) {
+      refetch();
+    }
+  }, [refreshTrigger, refetch]);
+
+  const prospections = clientsData || [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -116,9 +121,35 @@ const ProspectionList = () => {
     }
   };
 
-  const filteredData = filter === "all" 
-    ? mockData 
-    : mockData.filter(p => p.status === filter);
+  const filteredData = prospections;
+
+  if (isLoading) {
+    return (
+      <div className="relative bg-card rounded-xl shadow-md border border-border p-12">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Chargement des clients...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="relative bg-card rounded-xl shadow-md border border-border p-12">
+        <div className="flex flex-col items-center justify-center space-y-4">
+          <AlertCircle className="h-8 w-8 text-destructive" />
+          <p className="text-destructive font-medium">Erreur lors du chargement</p>
+          <p className="text-sm text-muted-foreground">
+            {error instanceof Error ? error.message : 'Une erreur est survenue'}
+          </p>
+          <Button onClick={() => refetch()} variant="outline">
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative bg-card rounded-xl shadow-md border border-border">
@@ -149,10 +180,15 @@ const ProspectionList = () => {
                     <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
                     <div>
                       <p className="font-medium">Adresse</p>
-                      <p className="text-muted-foreground">
-                        {selectedProspection.address}<br />
-                        {selectedProspection.postalCode} {selectedProspection.city}
-                      </p>
+                  <p className="text-muted-foreground">
+                    {selectedProspection.address && (
+                      <>
+                        {selectedProspection.address}
+                        <br />
+                      </>
+                    )}
+                    {selectedProspection.postalCode} {selectedProspection.city}
+                  </p>
                     </div>
                   </div>
 
@@ -177,12 +213,14 @@ const ProspectionList = () => {
                   )}
                 </div>
 
-                <div className="pt-4 border-t">
-                  <h4 className="font-medium mb-2">Notes</h4>
-                  <div className="bg-secondary/50 p-4 rounded-lg">
-                    <p className="text-sm">{selectedProspection.notes}</p>
+                {selectedProspection.notes && (
+                  <div className="pt-4 border-t">
+                    <h4 className="font-medium mb-2">Notes</h4>
+                    <div className="bg-secondary/50 p-4 rounded-lg">
+                      <p className="text-sm">{selectedProspection.notes}</p>
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {selectedProspection.nextAction && (
                   <div className="flex items-center gap-3 p-3 bg-accent/10 rounded-lg">
@@ -200,7 +238,13 @@ const ProspectionList = () => {
       )}
       {/* Header */}
       <div className="p-6 border-b border-border">
-        <h2 className="text-xl font-bold text-foreground mb-4">Prospections</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold text-foreground">Prospections</h2>
+          <Button onClick={() => setShowAddDialog(true)} size="sm" className="gap-2">
+            <Plus className="h-4 w-4" />
+            Ajouter un client
+          </Button>
+        </div>
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setFilter("all")}
@@ -247,7 +291,15 @@ const ProspectionList = () => {
 
       {/* List */}
       <div className="divide-y divide-border">
-        {filteredData.map((prospection) => (
+        {filteredData.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-muted-foreground">Aucun client trouvé</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Importez des clients depuis un fichier Excel pour commencer
+            </p>
+          </div>
+        ) : (
+          filteredData.map((prospection) => (
           <div
             key={prospection.id}
             className="p-6 hover:bg-secondary/50 transition-colors cursor-pointer"
@@ -288,8 +340,18 @@ const ProspectionList = () => {
               </div>
             )}
           </div>
-        ))}
+        ))
+        )}
       </div>
+
+      {/* Add Client Dialog */}
+      <AddClientDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={() => {
+          refetch();
+        }}
+      />
     </div>
   );
 };

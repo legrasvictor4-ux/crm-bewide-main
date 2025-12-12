@@ -14,7 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clients: {
+        Row: {
+          id: string
+          first_name: string | null
+          last_name: string
+          email: string | null
+          phone: string | null
+          company: string | null
+          address: string | null
+          postal_code: string | null
+          city: string | null
+          arrondissement: string | null
+          contact: string | null
+          status: 'new' | 'success' | 'pending' | 'lost' | 'to_recontact'
+          notes: string | null
+          next_action: string | null
+          date_created: string
+          date_updated: string
+          imported_at: string | null
+          source_file: string | null
+          enrichment_data: Json | null
+          business_description: string | null
+          segmentation: string | null
+          lead_score: number | null
+          enriched_at: string | null
+          metadata: Json
+        }
+        Insert: {
+          id?: string
+          first_name?: string | null
+          last_name: string
+          email?: string | null
+          phone?: string | null
+          company?: string | null
+          address?: string | null
+          postal_code?: string | null
+          city?: string | null
+          arrondissement?: string | null
+          contact?: string | null
+          status?: 'new' | 'success' | 'pending' | 'lost' | 'to_recontact'
+          notes?: string | null
+          next_action?: string | null
+          date_created?: string
+          date_updated?: string
+          imported_at?: string | null
+          source_file?: string | null
+          enrichment_data?: Json | null
+          business_description?: string | null
+          segmentation?: string | null
+          lead_score?: number | null
+          enriched_at?: string | null
+          metadata?: Json
+        }
+        Update: {
+          id?: string
+          first_name?: string | null
+          last_name?: string
+          email?: string | null
+          phone?: string | null
+          company?: string | null
+          address?: string | null
+          postal_code?: string | null
+          city?: string | null
+          arrondissement?: string | null
+          contact?: string | null
+          status?: 'new' | 'success' | 'pending' | 'lost' | 'to_recontact'
+          notes?: string | null
+          next_action?: string | null
+          date_created?: string
+          date_updated?: string
+          imported_at?: string | null
+          source_file?: string | null
+          enrichment_data?: Json | null
+          business_description?: string | null
+          segmentation?: string | null
+          lead_score?: number | null
+          enriched_at?: string | null
+          metadata?: Json
+        }
+      }
     }
     Views: {
       [_ in never]: never

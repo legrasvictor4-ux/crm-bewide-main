@@ -1,0 +1,372 @@
+=== UNIFIED DIFFS FOR ALL CHANGES ===
+
+--- a/api-server.mjs
++++ b/api-server.mjs
+@@ -7,7 +7,7 @@ const __filename = fileURLToPath(import.meta.url);
+ const __dirname = path.dirname(__filename);
+ 
+ const app = express();
+-const PORT = 3000;
++const PORT = process.env.PORT || 3000;
+ 
+ // Middleware
+ app.use(cors());
+ app.use(express.json());
+@@ -14,6 +14,30 @@ app.use(express.json());
+ 
++// Request logging middleware
++app.use((req, res, next) => {
++  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
++  next();
++});
++
++// Error handling middleware
++app.use((err, req, res, next) => {
++  console.error(`[${new Date().toISOString()}] Error:`, err);
++  res.status(err.status || 500).json({
++    success: false,
++    error: err.message || 'Internal server error',
++    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
++  });
++});
++
++// Health check endpoint
++app.get('/api/health', (req, res) => {
++  res.status(200).json({
++    success: true,
++    status: 'healthy',
++    timestamp: new Date().toISOString(),
++    uptime: process.uptime()
++  });
++});
++
++// Import prospection endpoint
++app.post('/api/import/prospection', (req, res, next) => {
++  try {
++    const { prospects } = req.body;
++
++    // Validation
++    if (!prospects) {
++      return res.status(400).json({
++        success: false,
++        error: 'Missing required field: prospects'
++      });
++    }
++
++    if (!Array.isArray(prospects)) {
++      return res.status(400).json({
++        success: false,
++        error: 'prospects must be an array'
++      });
++    }
++
++    if (prospects.length === 0) {
++      return res.status(400).json({
++        success: false,
++        error: 'prospects array cannot be empty'
++      });
++    }
++
++    // Validate each prospect
++    const errors = [];
++    const validProspects = [];
++
++    prospects.forEach((prospect, index) => {
++      const prospectErrors = [];
++
++      if (!prospect.name || typeof prospect.name !== 'string' || prospect.name.trim().length === 0) {
++        prospectErrors.push('name is required and must be a non-empty string');
++      }
++
++      if (prospectErrors.length > 0) {
++        errors.push({
++          index,
++          prospect: prospect.name || `prospect at index ${index}`,
++          errors: prospectErrors
++        });
++      } else {
++        validProspects.push(prospect);
++      }
++    });
++
++    if (errors.length > 0) {
++      return res.status(400).json({
++        success: false,
++        error: 'Validation failed',
++        validationErrors: errors,
++        validCount: validProspects.length,
++        invalidCount: errors.length
++      });
++    }
++
++    // Process valid prospects (mock implementation)
++    const processed = validProspects.map((prospect, index) => ({
++      id: `prospect_${Date.now()}_${index}`,
++      ...prospect,
++      importedAt: new Date().toISOString(),
++      status: 'imported'
++    }));
++
++    console.log(`[${new Date().toISOString()}] Imported ${processed.length} prospects`);
++
++    res.status(200).json({
++      success: true,
++      message: `Successfully imported ${processed.length} prospect(s)`,
++      count: processed.length,
++      prospects: processed
++    });
++  } catch (error) {
++    next(error);
++  }
++});
++
+ // Mock API endpoint
+ app.post('/api/chat', (req, res) => {
+   const mockResponses = [
+@@ -30,6 +94,15 @@ app.post('/api/chat', (req, res) => {
+   }, 500);
+ });
+ 
++// 404 handler
++app.use((req, res) => {
++  res.status(404).json({
++    success: false,
++    error: 'Route not found',
++    path: req.path
++  });
++});
++
+ // Start server
+ app.listen(PORT, () => {
+-  console.log(`API server running on http://localhost:${PORT}`);
++  console.log(`[${new Date().toISOString()}] API server running on http://localhost:${PORT}`);
++  console.log(`[${new Date().toISOString()}] Health check available at http://localhost:${PORT}/api/health`);
+ });
+ 
+--- a/package.json
++++ b/package.json
+@@ -6,7 +6,9 @@
+   "type": "module",
+   "scripts": {
+-    "dev": "vite",
++    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",
++    "dev:frontend": "vite",
++    "dev:backend": "node api-server.mjs",
+     "dev:all": "concurrently \"npm run dev\" \"node api-server.mjs\"",
+     "api": "node api-server.mjs",
+     "build": "vite build",
+     "build:dev": "vite build --mode development",
+     "lint": "eslint .",
+-    "preview": "vite preview"
++    "preview": "vite preview",
++    "test:api": "node tests/api.test.mjs"
+   },
+ 
+--- a/vite.config.ts
++++ b/vite.config.ts
+@@ -11,6 +11,18 @@ export default defineConfig(({ mode }) => ({
+     proxy: {
+       '/api': {
+         target: 'http://localhost:3000',
+         changeOrigin: true,
++        secure: false,
++        ws: true,
++        configure: (proxy, _options) => {
++          proxy.on('error', (err, _req, res) => {
++            console.error('Proxy error:', err);
++            if (res && !res.headersSent) {
++              res.writeHead(500, {
++                'Content-Type': 'application/json',
++              });
++              res.end(JSON.stringify({ error: 'Proxy error: Backend server may not be running' }));
++            }
++          });
++        },
+       },
+     },
+   },
+
+--- /dev/null
++++ b/tests/api.test.mjs
+@@ -0,0 +1,180 @@
++import { describe, it, before, after } from 'node:test';
++import assert from 'node:assert';
++import http from 'node:http';
++
++const API_URL = 'http://localhost:3000';
++const TEST_TIMEOUT = 5000;
++
++// Helper function to make HTTP requests
++function makeRequest(method, path, data = null) {
++  return new Promise((resolve, reject) => {
++    const url = new URL(path, API_URL);
++    const options = {
++      method,
++      headers: {
++        'Content-Type': 'application/json',
++      },
++    };
++
++    const req = http.request(url, options, (res) => {
++      let body = '';
++      res.on('data', (chunk) => {
++        body += chunk;
++      });
++      res.on('end', () => {
++        try {
++          const parsed = body ? JSON.parse(body) : {};
++          resolve({
++            status: res.statusCode,
++            headers: res.headers,
++            body: parsed,
++          });
++        } catch (e) {
++          resolve({
++            status: res.statusCode,
++            headers: res.headers,
++            body: body,
++          });
++        }
++      });
++    });
++
++    req.on('error', (error) => {
++      reject(error);
++    });
++
++    if (data) {
++      req.write(JSON.stringify(data));
++    }
++
++    req.end();
++  });
++}
++
++describe('API Integration Tests', () => {
++  describe('GET /api/health', () => {
++    it('should return 200 with healthy status', async () => {
++      const response = await makeRequest('GET', '/api/health');
++      
++      assert.strictEqual(response.status, 200);
++      assert.strictEqual(response.body.success, true);
++      assert.strictEqual(response.body.status, 'healthy');
++      assert.ok(response.body.timestamp);
++      assert.ok(typeof response.body.uptime === 'number');
++    });
++  });
++
++  describe('POST /api/import/prospection', () => {
++    it('should return 200 with valid prospects', async () => {
++      const validData = {
++        prospects: [
++          { name: 'Test Prospect 1', email: 'test1@example.com' },
++          { name: 'Test Prospect 2', phone: '+33123456789' },
++        ],
++      };
++
++      const response = await makeRequest('POST', '/api/import/prospection', validData);
++      
++      assert.strictEqual(response.status, 200);
++      assert.strictEqual(response.body.success, true);
++      assert.strictEqual(response.body.count, 2);
++      assert.ok(Array.isArray(response.body.prospects));
++      assert.strictEqual(response.body.prospects.length, 2);
++      assert.ok(response.body.prospects[0].id);
++      assert.ok(response.body.prospects[0].importedAt);
++      assert.strictEqual(response.body.prospects[0].status, 'imported');
++    });
++
++    it('should return 400 when prospects field is missing', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {});
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.error.includes('prospects'));
++    });
++
++    it('should return 400 when prospects is not an array', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {
++        prospects: 'not an array',
++      });
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.error.includes('array'));
++    });
++
++    it('should return 400 when prospects array is empty', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {
++        prospects: [],
++      });
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.error.includes('empty'));
++    });
++
++    it('should return 400 when prospect name is missing', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {
++        prospects: [
++          { email: 'test@example.com' },
++        ],
++      });
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.validationErrors);
++      assert.ok(Array.isArray(response.body.validationErrors));
++      assert.strictEqual(response.body.validCount, 0);
++      assert.strictEqual(response.body.invalidCount, 1);
++    });
++
++    it('should return 400 when prospect name is empty string', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {
++        prospects: [
++          { name: '' },
++        ],
++      });
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.validationErrors);
++    });
++
++    it('should return 400 when prospect name is only whitespace', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {
++        prospects: [
++          { name: '   ' },
++        ],
++      });
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.validationErrors);
++    });
++
++    it('should handle mixed valid and invalid prospects', async () => {
++      const response = await makeRequest('POST', '/api/import/prospection', {
++        prospects: [
++          { name: 'Valid Prospect' },
++          { email: 'invalid@example.com' }, // missing name
++          { name: 'Another Valid Prospect' },
++        ],
++      });
++      
++      assert.strictEqual(response.status, 400);
++      assert.strictEqual(response.body.success, false);
++      assert.strictEqual(response.body.validCount, 2);
++      assert.strictEqual(response.body.invalidCount, 1);
++    });
++  });
++
++  describe('Error handling', () => {
++    it('should return 404 for unknown routes', async () => {
++      const response = await makeRequest('GET', '/api/unknown');
++      
++      assert.strictEqual(response.status, 404);
++      assert.strictEqual(response.body.success, false);
++      assert.ok(response.body.error.includes('not found'));
++    });
++  });
++});
+

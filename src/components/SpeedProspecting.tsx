@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Phone, SkipForward, MessageSquare, CheckCircle, XCircle, Clock, Zap } from "lucide-react";
 import { toast } from "sonner";
+import { useEffect } from "react";
 
 interface Prospect {
   id: string;
@@ -15,14 +16,6 @@ interface Prospect {
   score: number;
   status: "hot" | "warm" | "cold";
 }
-
-const mockProspects: Prospect[] = [
-  { id: "1", name: "Jean Dupont", company: "Le Petit Bistrot", phone: "+33 6 12 34 56 78", score: 95, status: "hot" },
-  { id: "2", name: "Marie Martin", company: "Café de Flore", phone: "+33 6 98 76 54 32", score: 87, status: "hot" },
-  { id: "3", name: "Pierre Durand", company: "La Bonne Table", phone: "+33 6 45 67 89 01", score: 72, status: "warm" },
-  { id: "4", name: "Sophie Bernard", company: "Chez Marcel", phone: "+33 6 11 22 33 44", score: 65, status: "warm" },
-  { id: "5", name: "Luc Moreau", company: "Le Gourmet", phone: "+33 6 55 66 77 88", score: 58, status: "cold" },
-];
 
 const SpeedProspecting = () => {
   const [isActive, setIsActive] = useState(false);
@@ -35,9 +28,36 @@ const SpeedProspecting = () => {
     skipped: 0,
     startTime: null as Date | null,
   });
+  const [prospects, setProspects] = useState<Prospect[]>([]);
 
-  const currentProspect = mockProspects[currentIndex];
-  const progress = (currentIndex / mockProspects.length) * 100;
+  // Load prospects from database
+  useEffect(() => {
+    const loadProspects = async () => {
+      try {
+        const response = await fetch('/api/clients?status=to_recontact&limit=50');
+        const data = await response.json();
+        if (data.success && data.clients) {
+          // Transform clients to prospects format
+          const transformed = data.clients.map((client: any): Prospect => ({
+            id: client.id,
+            name: `${client.first_name || ''} ${client.last_name}`.trim() || 'Client',
+            company: client.company || '',
+            phone: client.phone || '',
+            score: client.lead_score || 50,
+            status: client.status === 'to_recontact' ? 'hot' : client.status === 'pending' ? 'warm' : 'cold'
+          }));
+          setProspects(transformed);
+        }
+      } catch (error) {
+        console.error('Failed to load prospects:', error);
+        toast.error('Erreur lors du chargement des prospects');
+      }
+    };
+    loadProspects();
+  }, []);
+
+  const currentProspect = prospects[currentIndex];
+  const progress = prospects.length > 0 ? (currentIndex / prospects.length) * 100 : 0;
 
   const startSession = () => {
     setIsActive(true);
@@ -67,7 +87,7 @@ const SpeedProspecting = () => {
     }));
 
     // Next prospect
-    if (currentIndex < mockProspects.length - 1) {
+    if (currentIndex < prospects.length - 1) {
       setCurrentIndex(prev => prev + 1);
     } else {
       endSession();
@@ -98,6 +118,17 @@ const SpeedProspecting = () => {
     }
   };
 
+  if (prospects.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[600px] space-y-8">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Aucun prospect à appeler</p>
+          <p className="text-sm text-muted-foreground">Importez des clients depuis Excel pour commencer</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isActive) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[600px] space-y-8">
@@ -115,11 +146,11 @@ const SpeedProspecting = () => {
         
         <div className="grid grid-cols-3 gap-6 text-center">
           <div className="p-4 rounded-lg bg-card border">
-            <div className="text-3xl font-bold text-primary">{mockProspects.length}</div>
-            <p className="text-sm text-muted-foreground">Prospects à appeler</p>
-          </div>
-          <div className="p-4 rounded-lg bg-card border">
-            <div className="text-3xl font-bold text-red-500">{mockProspects.filter(p => p.status === "hot").length}</div>
+          <div className="text-3xl font-bold text-primary">{prospects.length}</div>
+          <p className="text-sm text-muted-foreground">Prospects à appeler</p>
+        </div>
+        <div className="p-4 rounded-lg bg-card border">
+          <div className="text-3xl font-bold text-red-500">{prospects.filter(p => p.status === "hot").length}</div>
             <p className="text-sm text-muted-foreground">Prospects chauds</p>
           </div>
           <div className="p-4 rounded-lg bg-card border">
@@ -145,7 +176,7 @@ const SpeedProspecting = () => {
             <Clock className="h-4 w-4" />
             {getSessionDuration()}
           </span>
-          <span>{currentIndex + 1} / {mockProspects.length}</span>
+          <span>{currentIndex + 1} / {prospects.length}</span>
         </div>
         <Progress value={progress} className="h-3" />
       </div>
