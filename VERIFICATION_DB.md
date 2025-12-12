@@ -93,3 +93,5 @@ Une fois la table créée:
 1. ✅ Vérifiez avec `curl http://localhost:3000/api/setup/database`
 2. ✅ Testez l'import Excel: `npm run dev` puis importez un fichier
 3. ✅ Vérifiez que les clients apparaissent dans la liste
+
+

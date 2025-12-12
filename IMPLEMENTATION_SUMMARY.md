@@ -181,3 +181,5 @@ Ces composants peuvent être mis à jour ultérieurement pour utiliser la base d
 3. **Tester l'import** - Créer un fichier Excel de test
 4. **Optionnel**: Configurer OPENAI_API_KEY pour l'enrichissement automatique
 5. **Mettre à jour les autres composants** - Remplacer les mocks restants par des requêtes DB
+
+

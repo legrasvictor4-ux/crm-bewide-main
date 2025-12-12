@@ -161,3 +161,5 @@
 - `description` → `notes` (optional)
 
 **No DB Migration Needed**: Existing columns can accommodate requirements with backend validation.
+
+

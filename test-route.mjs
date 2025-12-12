@@ -24,3 +24,5 @@ const routeMatches = content.matchAll(/app\.(get|post|put|delete)\('([^']+)'/g);
 for (const match of routeMatches) {
   console.log(`  ${match[1].toUpperCase()} ${match[2]}`);
 }
+
+

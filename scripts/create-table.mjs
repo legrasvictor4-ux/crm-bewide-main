@@ -168,3 +168,5 @@ CREATE INDEX IF NOT EXISTS idx_clients_date_created ON public.clients(date_creat
 }
 
 createTable();
+
+

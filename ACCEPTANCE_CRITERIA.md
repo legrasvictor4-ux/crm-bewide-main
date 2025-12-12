@@ -140,3 +140,5 @@ npm run dev:frontend # Port 8080
 - Si plusieurs mots: dernier mot = `last_name`, reste = `first_name`
 - La table `clients` existe déjà, pas de migration nécessaire
 - Le champ `phone` en DB est nullable mais validé comme requis côté backend
+
+
