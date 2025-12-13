@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { Mic } from "lucide-react";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -36,6 +37,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
     description: "",
   });
   const [errors, setErrors] = useState<Partial<Record<keyof ClientFormData, string>>>({});
+  const [isDictating, setIsDictating] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -112,6 +114,36 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
     }
 
     mutation.mutate(formData);
+  };
+
+  const handleDictation = () => {
+    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+      toast.error("Dictée vocale non disponible sur ce navigateur");
+      return;
+    }
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    const recognition = new SpeechRecognition();
+    recognition.lang = "fr-FR";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onstart = () => setIsDictating(true);
+    recognition.onend = () => setIsDictating(false);
+    recognition.onerror = () => setIsDictating(false);
+    recognition.onresult = (event: any) => {
+      const transcript = Array.from(event.results).map((r: any) => r[0].transcript).join(" ");
+      // Simple heuristic: try to extract phone and email
+      const phoneMatch = transcript.match(/((\\+\\d{1,3})?\\s?\\d{2}[\\s.-]?\\d{2}[\\s.-]?\\d{2}[\\s.-]?\\d{2})/);
+      const emailMatch = transcript.match(/[\\w._%+-]+@[\\w.-]+\\.[a-zA-Z]{2,}/);
+      const name = transcript.split(",")[0] || transcript;
+      setFormData((prev) => ({
+        ...prev,
+        name: prev.name || name.trim(),
+        phone_number: phoneMatch ? phoneMatch[0] : prev.phone_number,
+        email: emailMatch ? emailMatch[0] : prev.email,
+        description: prev.description || transcript,
+      }));
+    };
+    recognition.start();
   };
 
   const handleChange = (field: keyof ClientFormData, value: string) => {
@@ -198,6 +230,10 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
               {errors.description && (
                 <p className="text-sm text-destructive">{errors.description}</p>
               )}
+              <Button type="button" variant="outline" size="sm" className="gap-2" onClick={handleDictation} disabled={isDictating || mutation.isPending}>
+                <Mic className="h-4 w-4" />
+                {isDictating ? "Dictée en cours..." : "Dicter les champs"}
+              </Button>
             </div>
           </div>
           <DialogFooter>
@@ -227,5 +263,4 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
 };
 
 export default AddClientDialog;
-
 

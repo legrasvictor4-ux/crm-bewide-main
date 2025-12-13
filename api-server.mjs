@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -5,6 +6,9 @@ import { fileURLToPath } from 'url';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
+import folderUploadRouter from './src/backend/batchImportRoute.js';
+import { computeLeadScore } from './server/leadScoreService.js';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,13 +18,21 @@ const PORT = process.env.PORT || 3000;
 
 // Supabase client
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_ANON_KEY ||
+  process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.warn('[WARNING] Supabase credentials not found. Database operations will fail.');
 }
+if (supabaseKey && !process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
+  console.warn('[WARNING] Using a non-service Supabase key; write operations may fail if RLS is enabled.');
+}
 
-const supabase = supabaseUrl && supabaseKey 
+const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey)
   : null;
 
@@ -47,6 +59,8 @@ const upload = multer({
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+// Mount folder upload routes (uses disk storage for nested folder imports)
+app.use('/api/upload', folderUploadRouter);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -299,6 +313,7 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
         row_number: index + 2, // +2 because index is 0-based and Excel rows start at 1 (header is row 1)
         import_date: new Date().toISOString()
       };
+      client.lead_score = computeLeadScore(client);
 
       if (rowErrors.length > 0) {
         errors.push({
@@ -321,8 +336,6 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
 
     // Insert into database
     let insertedClients = [];
-    let dbErrors = [];
-
     if (validClients.length > 0) {
       try {
         const { data: inserted, error: insertError } = await supabase
@@ -331,7 +344,12 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
           .select();
 
         if (insertError) {
-          throw insertError;
+          console.error('[ERROR] Database insert failed in /api/import/excel:', insertError);
+          return res.status(500).json({
+            success: false,
+            error: 'Database insertion failed',
+            details: insertError.message
+          });
         }
 
         insertedClients = inserted || [];
@@ -349,9 +367,11 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
           }
         }
       } catch (dbError) {
-        console.error('[ERROR] Database insert failed:', dbError);
-        dbErrors.push({
-          error: dbError.message || 'Database insertion failed'
+        console.error('[ERROR] Unexpected failure in /api/import/excel:', dbError);
+        return res.status(500).json({
+          success: false,
+          error: 'Database insertion failed',
+          details: dbError.message
         });
       }
     }
@@ -364,8 +384,7 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
       validRows: validClients.length,
       invalidRows: errors.length,
       clients: insertedClients,
-      ...(errors.length > 0 && { validationErrors: errors }),
-      ...(dbErrors.length > 0 && { databaseErrors: dbErrors })
+      ...(errors.length > 0 && { validationErrors: errors })
     };
 
     console.log(`[${new Date().toISOString()}] Imported ${insertedClients.length} clients from ${req.file.originalname}`);
@@ -484,26 +503,30 @@ app.post('/api/import/prospection', async (req, res, next) => {
     }
 
     // Transform prospects to client format
-    const clients = prospects.map(prospect => ({
-      last_name: prospect.name || prospect.last_name || 'Client',
-      first_name: prospect.first_name || null,
-      email: prospect.email || null,
-      phone: prospect.phone || null,
-      company: prospect.company || null,
-      address: prospect.address || null,
-      postal_code: prospect.postal_code || null,
-      city: prospect.city || null,
-      arrondissement: prospect.arrondissement || null,
-      contact: prospect.contact || null,
-      status: prospect.status || 'new',
-      notes: prospect.notes || null,
-      next_action: prospect.nextAction || null,
-      imported_at: new Date().toISOString(),
-      metadata: {
-        import_method: 'api_import_prospection',
-        original_data: prospect
-      }
-    }));
+    const clients = prospects.map(prospect => {
+      const client = {
+        last_name: prospect.name || prospect.last_name || 'Client',
+        first_name: prospect.first_name || null,
+        email: prospect.email || null,
+        phone: prospect.phone || null,
+        company: prospect.company || null,
+        address: prospect.address || null,
+        postal_code: prospect.postal_code || null,
+        city: prospect.city || null,
+        arrondissement: prospect.arrondissement || null,
+        contact: prospect.contact || null,
+        status: prospect.status || 'new',
+        notes: prospect.notes || null,
+        next_action: prospect.nextAction || null,
+        imported_at: new Date().toISOString(),
+        metadata: {
+          import_method: 'api_import_prospection',
+          original_data: prospect
+        }
+      };
+      client.lead_score = computeLeadScore(client);
+      return client;
+    });
 
     // Validate
     const errors = [];
@@ -536,6 +559,7 @@ app.post('/api/import/prospection', async (req, res, next) => {
       .select();
 
     if (insertError) {
+      console.error('[ERROR] Database insertion failed for /api/import/prospection:', insertError);
       return res.status(500).json({
         success: false,
         error: 'Database insertion failed',
@@ -582,6 +606,7 @@ app.get('/api/clients', async (req, res, next) => {
     const { data, error } = await query;
 
     if (error) {
+      console.error('[ERROR] Failed to fetch clients:', error);
       throw error;
     }
 
@@ -593,6 +618,59 @@ app.get('/api/clients', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// Lead score endpoint
+app.get('/api/clients/lead-score', async (req, res, next) => {
+  try {
+    if (!supabase) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not configured'
+      });
+    }
+
+    const { minScore = 0, limit = 100 } = req.query;
+
+    const { data, error } = await supabase
+      .from('clients')
+      .select('*')
+      .order('lead_score', { ascending: false })
+      .range(0, parseInt(limit) - 1);
+
+    if (error) {
+      console.error('[ERROR] Failed to fetch lead scores:', error);
+      throw error;
+    }
+
+    const filtered = (data || []).filter(c => (c.lead_score ?? 0) >= parseInt(minScore));
+
+    res.status(200).json({
+      success: true,
+      count: filtered.length,
+      clients: filtered
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Simple auth endpoints (token issuance placeholder)
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password, provider } = req.body || {};
+  if (provider && (provider === 'google' || provider === 'apple')) {
+    const token = crypto.randomBytes(24).toString('hex');
+    return res.status(200).json({ success: true, token, email: email || `${provider}@example.com` });
+  }
+  if (!email || !password) {
+    return res.status(400).json({ success: false, error: 'Email and password are required' });
+  }
+  const token = crypto.randomBytes(24).toString('hex');
+  return res.status(200).json({ success: true, token, email });
+});
+
+app.post('/api/auth/logout', async (_req, res) => {
+  return res.status(200).json({ success: true });
 });
 
 // Create client endpoint
@@ -652,6 +730,8 @@ app.post('/api/clients', async (req, res, next) => {
       notes: description && description.trim().length > 0 ? description.trim() : null,
       status: 'new'
     };
+
+    clientData.lead_score = computeLeadScore(clientData);
 
     // Insert into database
     const { data, error } = await supabase
