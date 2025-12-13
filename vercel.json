@@ -1,9 +1,9 @@
 {
   "version": 2,
   "builds": [
-    { "src": "src/api/chat/index.ts", "use": "@vercel/node" }
+    { "src": "api-server.mjs", "use": "@vercel/node" }
   ],
   "routes": [
-    { "src": "/api/chat", "dest": "/src/api/chat" }
+    { "src": "/api/(.*)", "dest": "/api-server.mjs" }
   ]
 }

@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AddClientDialog from "@/components/AddClientDialog";
+import ClientRowActions from "@/components/ClientRowActions";
 
 interface Prospection {
   id: string;
@@ -22,21 +23,29 @@ interface Prospection {
   nextAction?: string | null;
   date: string;
   notes: string | null;
+  lead_score?: number | null;
 }
 
-const ProspectionList = ({ refreshTrigger }: { refreshTrigger?: number }) => {
+interface ProspectionListProps {
+  refreshTrigger?: number;
+  minScore?: number;
+  sortByScore?: boolean;
+  search?: string;
+}
+
+const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, search = "" }: ProspectionListProps) => {
   const [filter, setFilter] = useState<string>("all");
   const [selectedProspection, setSelectedProspection] = useState<Prospection | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
 
   // Fetch clients from database
   const { data: clientsData, isLoading, error, refetch } = useQuery({
-    queryKey: ['clients', filter, refreshTrigger],
+    queryKey: ['clients', filter, refreshTrigger, minScore, sortByScore, search],
     queryFn: async () => {
       let query = supabase
         .from('clients')
         .select('*')
-        .order('date_created', { ascending: false });
+        .order(sortByScore ? 'lead_score' : 'date_created', { ascending: false });
 
       if (filter !== 'all') {
         query = query.eq('status', filter);
@@ -49,7 +58,13 @@ const ProspectionList = ({ refreshTrigger }: { refreshTrigger?: number }) => {
       }
 
       // Transform database format to Prospection format
-      return (data || []).map((client): Prospection => ({
+      return (data || [])
+        .filter(c => (c.lead_score ?? 0) >= minScore)
+        .filter(c => {
+          const term = search.toLowerCase();
+          return !term || (c.company || `${c.first_name || ''} ${c.last_name}`.toLowerCase().includes(term));
+        })
+        .map((client): Prospection => ({
         id: client.id,
         name: client.company || `${client.first_name || ''} ${client.last_name}`.trim() || 'Client sans nom',
         arrondissement: client.arrondissement || null,
@@ -63,6 +78,7 @@ const ProspectionList = ({ refreshTrigger }: { refreshTrigger?: number }) => {
         nextAction: client.next_action || null,
         date: client.date_created || new Date().toISOString(),
         notes: client.notes || null,
+        lead_score: client.lead_score
       }));
     },
   });
@@ -305,12 +321,17 @@ const ProspectionList = ({ refreshTrigger }: { refreshTrigger?: number }) => {
             className="p-6 hover:bg-secondary/50 transition-colors cursor-pointer"
             onClick={() => setSelectedProspection(prospection)}
           >
-            <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex items-start justify-between gap-4 mb-3">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {getStatusIcon(prospection.status)}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-lg mb-1">
+                  <h3 className="font-semibold text-foreground text-lg mb-1 flex items-center gap-2">
                     {prospection.name}
+                    {prospection.lead_score !== undefined && prospection.lead_score !== null && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">
+                        Score {prospection.lead_score}
+                      </span>
+                    )}
                   </h3>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
                     <span className="flex items-center gap-1">
@@ -329,9 +350,12 @@ const ProspectionList = ({ refreshTrigger }: { refreshTrigger?: number }) => {
                   </p>
                 </div>
               </div>
-              <Badge variant={getStatusVariant(prospection.status)}>
-                {getStatusLabel(prospection.status)}
-              </Badge>
+              <div className="flex items-center gap-3">
+                <Badge variant={getStatusVariant(prospection.status)}>
+                  {getStatusLabel(prospection.status)}
+                </Badge>
+                <ClientRowActions />
+              </div>
             </div>
             {prospection.nextAction && (
               <div className="ml-8 mt-2 flex items-center gap-2 text-sm">

@@ -1,34 +1,62 @@
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import MapView from "@/components/MapView";
+import { supabase } from "@/integrations/supabase/client";
 
 const Map = () => {
   const navigate = useNavigate();
+  const [prospections, setProspections] = useState<
+    Array<{
+      id: string;
+      name: string;
+      address?: string | null;
+      lat?: number | null;
+      lng?: number | null;
+    }>
+  >([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Example prospections data - this should come from your database
-  const prospections = [
-    {
-      id: "1",
-      name: "Le Comptoir du Renne",
-      address: "3ème arrondissement",
-      lat: 48.8644,
-      lng: 2.3589,
-    },
-    {
-      id: "2",
-      name: "Restaurant Le Marais",
-      address: "11ème arrondissement",
-      lat: 48.8606,
-      lng: 2.3810,
-    },
-    {
-      id: "3",
-      name: "Café de la Paix",
-      address: "11ème arrondissement",
-      lat: 48.8625,
-      lng: 2.3795,
-    },
-  ];
+  useEffect(() => {
+    const loadClients = async () => {
+      try {
+        setIsLoading(true);
+        const { data, error: fetchError } = await supabase
+          .from("clients")
+          .select("id, first_name, last_name, company, address, city, postal_code, arrondissement, metadata")
+          .order("date_created", { ascending: false });
+
+        if (fetchError) throw fetchError;
+
+        const mapped = (data || []).map((client) => {
+          const metadata = (client as any).metadata || {};
+          const rawLat = metadata.lat ?? metadata.latitude;
+          const rawLng = metadata.lng ?? metadata.longitude;
+          const lat = typeof rawLat === "number" ? rawLat : null;
+          const lng = typeof rawLng === "number" ? rawLng : null;
+          const address = [client.address, client.postal_code, client.city].filter(Boolean).join(" ") || null;
+
+          return {
+            id: client.id,
+            name: client.company || `${client.first_name || ""} ${client.last_name}`.trim() || "Client",
+            address,
+            lat,
+            lng,
+          };
+        });
+
+        setProspections(mapped);
+        setError(null);
+      } catch (e: any) {
+        setError(e.message || "Erreur lors du chargement des clients");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadClients();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -55,7 +83,21 @@ const Map = () => {
       {/* Map Container */}
       <div className="flex-1 p-6">
         <div className="h-full bg-card rounded-xl shadow-md border border-border overflow-hidden">
-          <MapView prospections={prospections} />
+          {isLoading ? (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              Chargement des clients...
+            </div>
+          ) : error ? (
+            <div className="h-full flex items-center justify-center text-destructive">
+              {error}
+            </div>
+          ) : prospections.length === 0 ? (
+            <div className="h-full flex items-center justify-center text-muted-foreground">
+              Aucun client avec coordonnées disponible pour la carte.
+            </div>
+          ) : (
+            <MapView prospections={prospections} />
+          )}
         </div>
       </div>
     </div>

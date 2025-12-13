@@ -38,8 +38,8 @@ export default function AIChatWidget() {
     setIsLoading(true);
 
     try {
-      // Call your AI API endpoint here
-      const response = await fetch('/api/ai/chat', {
+      // Call backend chat endpoint
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

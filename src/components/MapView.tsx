@@ -7,9 +7,9 @@ interface MapViewProps {
   prospections?: Array<{
     id: string;
     name: string;
-    address: string;
-    lat: number;
-    lng: number;
+    address?: string | null;
+    lat?: number | null;
+    lng?: number | null;
   }>;
 }
 
@@ -72,8 +72,12 @@ const MapView = ({ prospections = [] }: MapViewProps) => {
   useEffect(() => {
     if (!map || prospections.length === 0) return;
 
+    const withCoords = prospections.filter(
+      (p) => typeof p.lat === "number" && typeof p.lng === "number"
+    ) as Array<{ lat: number; lng: number; name: string }>;
+
     // Clear existing markers
-    prospections.forEach((prospect) => {
+    withCoords.forEach((prospect) => {
       new google.maps.Marker({
         position: { lat: prospect.lat, lng: prospect.lng },
         map: map,
@@ -91,7 +95,11 @@ const MapView = ({ prospections = [] }: MapViewProps) => {
   }, [map, prospections]);
 
   const optimizeRoute = () => {
-    if (!map || !userLocation || prospections.length === 0) return;
+    const withCoords = prospections.filter(
+      (p) => typeof p.lat === "number" && typeof p.lng === "number"
+    );
+
+    if (!map || !userLocation || withCoords.length === 0) return;
 
     const directionsService = new google.maps.DirectionsService();
     const directionsRenderer = new google.maps.DirectionsRenderer({
@@ -99,12 +107,12 @@ const MapView = ({ prospections = [] }: MapViewProps) => {
       suppressMarkers: false,
     });
 
-    const waypoints = prospections.slice(0, -1).map((p) => ({
+    const waypoints = withCoords.slice(0, -1).map((p) => ({
       location: { lat: p.lat, lng: p.lng },
       stopover: true,
     }));
 
-    const destination = prospections[prospections.length - 1];
+    const destination = withCoords[withCoords.length - 1];
 
     directionsService.route(
       {

@@ -4,14 +4,23 @@ import VoiceRecorder from "@/components/VoiceRecorder";
 import ProspectionList from "@/components/ProspectionList";
 import ExcelUpload from "@/components/ExcelUpload";
 import StatsCard from "@/components/StatsCard";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AIChatWidget from "@/components/AIChatWidget";
+import ActionBar from "@/components/ActionBar";
+import LeadScoreLegend from "@/components/LeadScoreLegend";
+import AddClientDialog from "@/components/AddClientDialog";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [showRecorder, setShowRecorder] = useState(false);
   const [showExcelUpload, setShowExcelUpload] = useState(false);
+  const [showAddDialog, setShowAddDialog] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+  const [minScore, setMinScore] = useState(0);
+  const [sortByScore, setSortByScore] = useState(false);
+  const [search, setSearch] = useState("");
 
   const handleImportSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
@@ -60,6 +69,18 @@ const Index = () => {
         </div>
       </header>
 
+      <ActionBar
+        onAdd={() => setShowAddDialog(true)}
+        onImport={() => setShowExcelUpload(true)}
+        onToggleMap={() => navigate('/map')}
+        onSortLeadScore={() => setSortByScore((s) => !s)}
+        onFilterLeadScore={(n) => setMinScore(n)}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        search={search}
+        setSearch={setSearch}
+      />
+
       <div className="container mx-auto px-6 py-8">
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -72,7 +93,16 @@ const Index = () => {
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2">
-            <ProspectionList refreshTrigger={refreshTrigger} />
+            <div className="flex items-center justify-between px-1 pb-4">
+              <h2 className="text-xl font-bold text-foreground">Prospections</h2>
+              <LeadScoreLegend />
+            </div>
+            <ProspectionList
+              refreshTrigger={refreshTrigger}
+              minScore={minScore}
+              sortByScore={sortByScore}
+              search={search}
+            />
           </div>
           
           <div className="space-y-6">
@@ -93,6 +123,13 @@ const Index = () => {
                 >
                   <Mic className="h-5 w-5" />
                   Nouvelle prospection vocale
+                </button>
+                <button
+                  onClick={() => setShowAddDialog(true)}
+                  className="w-full btn-secondary flex items-center justify-center gap-3"
+                >
+                  <Sparkles className="h-5 w-5" />
+                  Ajouter un client
                 </button>
                 <Link to="/map" className="block">
                   <button className="w-full btn-secondary flex items-center justify-center gap-3">
@@ -145,6 +182,11 @@ const Index = () => {
       {/* Voice Recorder Modal */}
       {showRecorder && (
         <VoiceRecorder onClose={() => setShowRecorder(false)} />
+      )}
+
+      {/* Add Client Dialog */}
+      {showAddDialog && (
+        <AddClientDialog open={showAddDialog} onOpenChange={setShowAddDialog} onSuccess={() => setRefreshTrigger((r) => r + 1)} />
       )}
 
       {/* Excel Upload Modal */}
