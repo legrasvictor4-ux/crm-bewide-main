@@ -3,26 +3,17 @@ import ProspectionList from '../ProspectionList';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('@/integrations/supabase/client', () => ({
-  supabase: {
-    from: vi.fn().mockReturnThis(),
-    select: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    then: vi.fn(),
-  },
-}));
-
-const clients = [
-  { id: '1', first_name: 'John', last_name: 'Doe', status: 'new', date_created: new Date().toISOString() },
-];
-
-vi.spyOn((await import('@/integrations/supabase/client')).supabase, 'select').mockReturnValue({
-  order: () => ({
-    eq: () => ({ data: clients, error: null }),
-    then: () => ({}),
+vi.mock('@/hooks/use-clients', () => ({
+  useClients: () => ({
+    data: [
+      { id: '1', company: 'ACME', first_name: 'John', last_name: 'Doe', status: 'new', lead_score: 50, date_created: new Date().toISOString() },
+    ],
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
   }),
-});
+  useCreateClient: () => ({ mutate: vi.fn(), isPending: false }),
+}));
 
 const renderComponent = () =>
   render(
@@ -34,9 +25,8 @@ const renderComponent = () =>
 describe('ProspectionList', () => {
   afterEach(() => vi.clearAllMocks());
 
-  it('renders loading then data', async () => {
+  it('renders data when loaded', async () => {
     renderComponent();
-    expect(screen.getByText(/chargement des clients/i)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/john doe/i)).toBeInTheDocument());
   });
 });

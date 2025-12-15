@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Phone, SkipForward, MessageSquare, CheckCircle, XCircle, Clock, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { useEffect } from "react";
 
 interface Prospect {
   id: string;
@@ -35,17 +34,21 @@ const SpeedProspecting = () => {
     const loadProspects = async () => {
       try {
         const response = await fetch('/api/clients?status=to_recontact&limit=50');
-        const data = await response.json();
+        const data: { success?: boolean; clients?: Array<Record<string, unknown>> } = await response.json();
         if (data.success && data.clients) {
           // Transform clients to prospects format
-          const transformed = data.clients.map((client: any): Prospect => ({
-            id: client.id,
-            name: `${client.first_name || ''} ${client.last_name}`.trim() || 'Client',
-            company: client.company || '',
-            phone: client.phone || '',
-            score: client.lead_score || 50,
-            status: client.status === 'to_recontact' ? 'hot' : client.status === 'pending' ? 'warm' : 'cold'
-          }));
+          const transformed = data.clients.map((client): Prospect => {
+            const leadScore = typeof client.lead_score === "number" ? client.lead_score : 50;
+            const status = (client.status as Prospect["status"]) || "cold";
+            return {
+              id: String(client.id),
+              name: `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Client',
+              company: (client.company as string) || '',
+              phone: (client.phone as string) || '',
+              score: leadScore,
+              status: status === 'to_recontact' ? 'hot' : status === 'pending' ? 'warm' : 'cold'
+            };
+          });
           setProspects(transformed);
         }
       } catch (error) {

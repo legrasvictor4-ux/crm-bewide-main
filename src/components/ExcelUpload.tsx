@@ -13,7 +13,7 @@ interface ImportResult {
   totalRows: number;
   validRows: number;
   invalidRows: number;
-  clients: any[];
+  clients: Array<Record<string, unknown>>;
   validationErrors?: Array<{
     row: number;
     client: string;
@@ -264,5 +264,4 @@ const ExcelUpload = ({ onImportSuccess }: { onImportSuccess?: () => void }) => {
 };
 
 export default ExcelUpload;
-
 

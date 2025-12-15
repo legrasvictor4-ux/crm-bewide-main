@@ -30,7 +30,7 @@ const Map = () => {
         if (fetchError) throw fetchError;
 
         const mapped = (data || []).map((client) => {
-          const metadata = (client as any).metadata || {};
+          const metadata = (client as { metadata?: Record<string, unknown> }).metadata || {};
           const rawLat = metadata.lat ?? metadata.latitude;
           const rawLng = metadata.lng ?? metadata.longitude;
           const lat = typeof rawLat === "number" ? rawLat : null;
@@ -48,8 +48,9 @@ const Map = () => {
 
         setProspections(mapped);
         setError(null);
-      } catch (e: any) {
-        setError(e.message || "Erreur lors du chargement des clients");
+      } catch (e: unknown) {
+        const message = e instanceof Error ? e.message : "Erreur lors du chargement des clients";
+        setError(message);
       } finally {
         setIsLoading(false);
       }

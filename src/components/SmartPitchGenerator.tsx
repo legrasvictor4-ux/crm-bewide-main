@@ -8,7 +8,24 @@ import { supabase } from "@/integrations/supabase/client";
 
 const SmartPitchGenerator = () => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pitch, setPitch] = useState<any>(null);
+  interface PitchContent {
+    hook: string;
+    painPoints: string[];
+    uniqueSellingPoints: string[];
+    socialProof: string;
+    estimatedROI: string;
+    conversationStarters: string[];
+    objectionHandling: {
+      price?: string;
+      timing?: string;
+      current_agency?: string;
+    };
+    personalizedOffer: string;
+    callToAction: string;
+    confidence: number;
+  }
+
+  const [pitch, setPitch] = useState<PitchContent | null>(null);
   const [restaurantName, setRestaurantName] = useState("");
   const [location, setLocation] = useState("");
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
@@ -40,7 +57,7 @@ const SmartPitchGenerator = () => {
       if (error) throw error;
 
       if (data?.pitch) {
-        setPitch(data.pitch);
+        setPitch(data.pitch as PitchContent);
         toast({
           title: "✨ Pitch généré",
           description: "Votre pitch personnalisé est prêt",
@@ -170,7 +187,7 @@ const SmartPitchGenerator = () => {
           <Card className="p-6">
             <h4 className="font-bold text-lg text-foreground mb-4">💡 Points de Douleur & Solutions</h4>
             <div className="space-y-4">
-              {pitch.painPoints.map((point: any, idx: number) => (
+              {pitch.painPoints.map((point: string, idx: number) => (
                 <div key={idx} className="border-l-4 border-accent pl-4 py-2">
                   <p className="font-semibold text-foreground mb-1">❌ {point.problem}</p>
                   <p className="text-sm text-muted-foreground">✅ {point.solution}</p>

@@ -7,7 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 
 const AIVisionAnalyzer = () => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysis, setAnalysis] = useState<any>(null);
+  type AnalysisResult = Record<string, unknown>;
+  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();

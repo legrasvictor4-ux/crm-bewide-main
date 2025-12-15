@@ -11,5 +11,12 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    coverage: {
+      reporter: ['text', 'lcov'],
+      lines: 80,
+      functions: 80,
+      branches: 70,
+      statements: 80,
+    },
   },
 });

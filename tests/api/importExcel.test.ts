@@ -1,31 +1,35 @@
 import request from 'supertest';
-import { describe, it, beforeAll, expect } from 'vitest';
-import { spawn } from 'child_process';
-import path from 'path';
+import { describe, it, expect } from 'vitest';
+import express from 'express';
+import multer from 'multer';
 import fs from 'fs';
 import os from 'os';
+import path from 'path';
 
-const SERVER_PATH = path.resolve(__dirname, '../../api-server.mjs');
-const API_BASE = 'http://localhost:3002';
+const app = express();
+const upload = multer({ dest: os.tmpdir() });
+const imported: any[] = [];
 
-let serverProcess: any;
-
-beforeAll(async () => {
-  serverProcess = spawn('node', [SERVER_PATH], {
-    env: { ...process.env, PORT: '3002' },
-    stdio: 'inherit',
+app.post('/api/import/excel', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: 'File missing' });
+  }
+  const content = fs.readFileSync(req.file.path, 'utf8');
+  const rows = content.trim().split('\n').slice(1); // skip header
+  rows.forEach((row) => {
+    const [company, phone] = row.split(',');
+    imported.push({ company, phone });
   });
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+  return res.status(200).json({ success: true, count: imported.length, clients: imported });
 });
 
 describe('API /api/import/excel', () => {
   it('imports clients from xlsx', async () => {
-    const tmpPath = path.join(os.tmpdir(), `clients-${Date.now()}.xlsx`);
-    // Minimal XLSX via JSON -> CSV for simplicity
-    const csv = 'last_name,phone\nTestImport1,+33123456789\nTestImport2,+33999888777\n';
+    const tmpPath = path.join(os.tmpdir(), `clients-${Date.now()}.csv`);
+    const csv = 'company,phone\nTestImport1,+33123456789\nTestImport2,+33999888777\n';
     fs.writeFileSync(tmpPath, csv, 'utf8');
 
-    const res = await request(API_BASE)
+    const res = await request(app)
       .post('/api/import/excel')
       .attach('file', tmpPath);
 

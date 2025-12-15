@@ -1,4 +1,12 @@
-import 'dotenv/config';
+// Safe dotenv loader for ESM; wrapped to avoid hard crashes if missing in production
+if (!process.env.DISABLE_DOTENV) {
+  try {
+    const dotenv = await import('dotenv');
+    dotenv.config();
+  } catch (err) {
+    console.warn('[WARN] dotenv not installed or failed to load. Proceeding with process env only.');
+  }
+}
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -8,6 +16,11 @@ import * as XLSX from 'xlsx';
 import { createClient } from '@supabase/supabase-js';
 import folderUploadRouter from './src/backend/batchImportRoute.js';
 import { computeLeadScore } from './server/leadScoreService.js';
+import { validateContact } from './src/backend/validation/contactSchema.js';
+import { extractFieldsFromTranscript, findMatchByCompanyOrContact, buildProspectFromTranscript } from './src/backend/voiceUtils.js';
+import { createVoiceRouter } from './src/backend/voiceController.js';
+import { appointmentRequestSchema, detectConflicts } from './src/backend/scheduling.js';
+import { planRequestSchema, planDay } from './src/backend/planning.js';
 import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,15 +39,52 @@ const supabaseKey =
   process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
-  console.warn('[WARNING] Supabase credentials not found. Database operations will fail.');
+  console.warn('[WARNING] Supabase credentials not found. Database operations will use in-memory fallback if enabled.');
 }
 if (supabaseKey && !process.env.SUPABASE_SERVICE_ROLE_KEY && !process.env.VITE_SUPABASE_SERVICE_ROLE_KEY) {
   console.warn('[WARNING] Using a non-service Supabase key; write operations may fail if RLS is enabled.');
 }
-
 const supabase = supabaseUrl && supabaseKey
   ? createClient(supabaseUrl, supabaseKey)
   : null;
+
+// Lightweight in-memory store used when Supabase credentials are not provided (useful for tests)
+let useMemoryStore = process.env.TEST_MODE === 'memory' || (!supabase && process.env.ALLOW_MEMORY_DB !== 'false');
+
+if (!supabase && useMemoryStore) {
+  console.warn('[WARNING] Running with in-memory database. Data will not persist. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY to enable persistence.');
+}
+const memoryClients = [];
+
+const memoryDb = {
+  insertClient: (client) => {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+    const newClient = {
+      id,
+      date_created: now,
+      date_updated: now,
+      ...client,
+    };
+    memoryClients.unshift(newClient);
+    return newClient;
+  },
+  insertClients: (clients = []) => clients.map(memoryDb.insertClient),
+  listClients: ({ status, limit, offset }) => {
+    let data = [...memoryClients];
+    if (status && status !== 'all') {
+      data = data.filter(c => c.status === status);
+    }
+    return data.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+  },
+  getClient: (id) => memoryClients.find(c => c.id === id) || null,
+  leadScores: ({ limit, minScore }) => {
+    return [...memoryClients]
+      .filter(c => (c.lead_score ?? 0) >= minScore)
+      .sort((a, b) => (b.lead_score ?? 0) - (a.lead_score ?? 0))
+      .slice(0, limit);
+  }
+};
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage();
@@ -81,11 +131,9 @@ app.get('/api/health', (req, res) => {
 // Setup database endpoint - Vérifie si la table existe et affiche le SQL si nécessaire
 app.get('/api/setup/database', async (req, res, next) => {
   try {
-    if (!supabase) {
-      return res.status(500).json({
-        success: false,
-        error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
-      });
+    if (!supabase && !useMemoryStore) {
+      console.warn('[WARN] Supabase not configured; enabling in-memory fallback for import.');
+      useMemoryStore = true;
     }
 
     // Vérifier si la table existe
@@ -170,6 +218,15 @@ CREATE TRIGGER update_clients_updated_at BEFORE UPDATE ON public.clients
 });
 
 // Excel import endpoint
+app.get('/api/import/excel', (_req, res) => {
+  // Helpful hint instead of 404 when the endpoint is visited via GET
+  return res.status(200).json({
+    success: false,
+    error: 'Use POST multipart/form-data with field "file" to import Excel/CSV.',
+    expectedField: 'file',
+    note: 'Endpoint ready',
+  });
+});
 app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
@@ -179,7 +236,7 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
       });
     }
 
-    if (!supabase) {
+    if (!supabase && !useMemoryStore) {
       return res.status(500).json({
         success: false,
         error: 'Database not configured. Please set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.'
@@ -202,7 +259,28 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
     // Get first sheet
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet, { raw: false });
+
+    // Build header-aware data even if the first visible row is blank/styled
+    const headerRows = XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false });
+    let headerIndex = -1;
+    let bestCount = 0;
+    headerRows.forEach((row, idx) => {
+      const count = (row || []).reduce((acc, cell) => acc + (String(cell ?? '').trim() === '' ? 0 : 1), 0);
+      if (count > bestCount) {
+        bestCount = count;
+        headerIndex = idx;
+      }
+    });
+    const rawHeaderRow = headerIndex >= 0 ? headerRows[headerIndex] : [];
+    const headerRow = (rawHeaderRow || []).map((cell, idx) => {
+      const val = String(cell ?? '').trim();
+      return val === '' ? `col_${idx + 1}` : val;
+    });
+    const data = XLSX.utils.sheet_to_json(worksheet, {
+      header: headerRow,
+      raw: false,
+      range: headerIndex + 1 // start after header row
+    });
 
     if (data.length === 0) {
       return res.status(400).json({
@@ -242,6 +320,47 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
       }
     });
 
+    const normalizeHeader = (value) =>
+      (value || '').toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+    const enhancedHeaderMap = {
+      first_name: ['first_name', 'prenom', 'firstname'],
+      last_name: ['last_name', 'nom', 'name', 'lastname', 'nom de famille', 'nom de', 'enseigne'],
+      email: ['email', 'e-mail', 'mail', 'courriel'],
+      phone: ['phone', 'telephone', 'tel', 'mobile'],
+      company: ['company', 'entreprise', 'societe', 'compagnie', 'enseigne'],
+      address: ['address', 'adresse', 'street', 'rue'],
+      postal_code: ['postal_code', 'code postal', 'codepostal', 'zip', 'zipcode', 'cp'],
+      city: ['city', 'ville'],
+      arrondissement: ['arrondissement', 'arr', 'arrond'],
+      contact: ['contact', 'contact person', 'personne contact'],
+      notes: ['notes', 'note', 'commentaires', 'commentaire', 'remarques', 'synthese'],
+      status: ['status', 'statut'],
+      activity: ['activite', 'secteur'],
+      role: ['fonction', 'fonctions', 'role'],
+      instagram_account: ['instagram compte', 'compte instagram', 'instagram', 'compte'],
+      instagram_followers: ['nb de', 'followers', 'abonnes'],
+      r1_date: ['r1 date', 'r1'],
+      r1_note: ['r1 synthese'],
+      r2_date: ['r2 date', 'r2'],
+      r2_note: ['r2 synthese'],
+      r3_date: ['r3 date', 'r3'],
+      r3_note: ['r3 synthese']
+    };
+
+    Object.keys(enhancedHeaderMap).forEach(key => {
+      const possibleHeaders = enhancedHeaderMap[key];
+      for (const header of possibleHeaders) {
+        const found = Object.keys(firstRow).find(col => 
+          normalizeHeader(col) === normalizeHeader(header)
+        );
+        if (found) {
+          columnMap[key] = found;
+          break;
+        }
+      }
+    });
+
     // Validate required fields
     const requiredFields = ['last_name'];
     const missingFields = requiredFields.filter(field => !columnMap[field]);
@@ -259,14 +378,29 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
 
     data.forEach((row, index) => {
       const rowErrors = [];
+      const isBlankRow = Object.values(row || {}).every(val => String(val ?? '').trim() === '');
+      if (isBlankRow) {
+        return;
+      }
+
       const client = {
         last_name: String(row[columnMap.last_name] || '').trim()
       };
+
+      if (!client.last_name && columnMap.company) {
+        client.last_name = String(row[columnMap.company] || '').trim();
+      }
+
+      if (!client.last_name && columnMap.contact) {
+        client.last_name = String(row[columnMap.contact] || '').trim();
+      }
 
       // Required field validation
       if (!client.last_name) {
         rowErrors.push('last_name is required');
       }
+
+      const metadata = {};
 
       // Optional fields
       if (columnMap.first_name) {
@@ -286,6 +420,9 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
       if (columnMap.company) {
         client.company = String(row[columnMap.company] || '').trim() || null;
       }
+      if (!client.company && client.last_name) {
+        client.company = client.last_name;
+      }
       if (columnMap.address) {
         client.address = String(row[columnMap.address] || '').trim() || null;
       }
@@ -304,12 +441,93 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
       if (columnMap.notes) {
         client.notes = String(row[columnMap.notes] || '').trim() || null;
       }
+      if (columnMap.activity) {
+        const activity = String(row[columnMap.activity] || '').trim();
+        if (activity) {
+          client.segmentation = activity;
+          metadata.activity = activity;
+        }
+      }
+
+      if (columnMap.role) {
+        const role = String(row[columnMap.role] || '').trim();
+        if (role) {
+          metadata.role = role;
+        }
+      }
+
+      if (columnMap.instagram_account) {
+        const insta = String(row[columnMap.instagram_account] || '').trim();
+        if (insta) {
+          metadata.instagram_account = insta;
+        }
+      }
+
+      if (columnMap.instagram_followers) {
+        const followersRaw = String(row[columnMap.instagram_followers] || '').replace(/\s/g, '').trim();
+        if (followersRaw) {
+          const followersNum = parseInt(followersRaw, 10);
+          metadata.instagram_followers = Number.isNaN(followersNum) ? followersRaw : followersNum;
+        }
+      }
+
+      const followups = {};
+      const r1Note = columnMap.r1_note ? String(row[columnMap.r1_note] || '').trim() : '';
+      const r1Date = columnMap.r1_date ? String(row[columnMap.r1_date] || '').trim() : '';
+      const r2Note = columnMap.r2_note ? String(row[columnMap.r2_note] || '').trim() : '';
+      const r2Date = columnMap.r2_date ? String(row[columnMap.r2_date] || '').trim() : '';
+      const r3Note = columnMap.r3_note ? String(row[columnMap.r3_note] || '').trim() : '';
+      const r3Date = columnMap.r3_date ? String(row[columnMap.r3_date] || '').trim() : '';
+
+      if (r1Note || r1Date) {
+        followups.r1 = { date: r1Date || null, note: r1Note || null };
+      }
+      if (r2Note || r2Date) {
+        followups.r2 = { date: r2Date || null, note: r2Note || null };
+      }
+      if (r3Note || r3Date) {
+        followups.r3 = { date: r3Date || null, note: r3Note || null };
+      }
+
+      if (Object.keys(followups).length > 0) {
+        metadata.followups = followups;
+        const followupText = Object.entries(followups)
+          .map(([key, val]) => `${key.toUpperCase()}: ${val.date || 'n/a'} - ${val.note || ''}`.trim())
+          .filter(Boolean)
+          .join(' | ');
+        client.notes = [client.notes, followupText].filter(Boolean).join(' | ');
+      }
+
+      const statusMap = {
+        prospect: 'new',
+        active: 'new',
+        activee: 'new',
+        activees: 'new',
+        hot: 'pending',
+        pending: 'pending',
+        chaud: 'pending',
+        gagnee: 'success',
+        gagne: 'success',
+        win: 'success',
+        success: 'success',
+        perdue: 'lost',
+        perdu: 'lost',
+        lost: 'lost'
+      };
+
+      const rawStatus = columnMap.status ? String(row[columnMap.status] || '').trim() : '';
+      let resolvedStatus = 'new';
+      if (rawStatus) {
+        const normStatus = normalizeHeader(rawStatus);
+        resolvedStatus = statusMap[normStatus] || resolvedStatus;
+      }
 
       // Set defaults
-      client.status = 'new';
+      client.status = resolvedStatus;
       client.imported_at = new Date().toISOString();
       client.source_file = req.file.originalname;
       client.metadata = {
+        ...metadata,
         row_number: index + 2, // +2 because index is 0-based and Excel rows start at 1 (header is row 1)
         import_date: new Date().toISOString()
       };
@@ -338,32 +556,36 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
     let insertedClients = [];
     if (validClients.length > 0) {
       try {
-        const { data: inserted, error: insertError } = await supabase
-          .from('clients')
-          .insert(validClients)
-          .select();
+        if (useMemoryStore) {
+          insertedClients = memoryDb.insertClients(validClients);
+        } else {
+          const { data: inserted, error: insertError } = await supabase
+            .from('clients')
+            .insert(validClients)
+            .select();
 
-        if (insertError) {
-          console.error('[ERROR] Database insert failed in /api/import/excel:', insertError);
-          return res.status(500).json({
-            success: false,
-            error: 'Database insertion failed',
-            details: insertError.message
-          });
-        }
-
-        insertedClients = inserted || [];
-
-        // Enrich with OpenAI if requested
-        if (enrich === 'true' || enrich === true) {
-          const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
-          if (OPENAI_API_KEY) {
-            // Enrich in background (don't wait)
-            enrichClientsWithOpenAI(insertedClients, OPENAI_API_KEY, supabase).catch(err => {
-              console.error('[ERROR] Failed to enrich clients:', err);
+          if (insertError) {
+            console.error('[ERROR] Database insert failed in /api/import/excel:', insertError);
+            return res.status(500).json({
+              success: false,
+              error: 'Database insertion failed',
+              details: insertError.message
             });
-          } else {
-            console.warn('[WARNING] OpenAI API key not found. Skipping enrichment.');
+          }
+
+          insertedClients = inserted || [];
+
+          // Enrich with OpenAI if requested
+          if (enrich === 'true' || enrich === true) {
+            const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+            if (OPENAI_API_KEY) {
+              // Enrich in background (don't wait)
+              enrichClientsWithOpenAI(insertedClients, OPENAI_API_KEY, supabase).catch(err => {
+                console.error('[ERROR] Failed to enrich clients:', err);
+              });
+            } else {
+              console.warn('[WARNING] OpenAI API key not found. Skipping enrichment.');
+            }
           }
         }
       } catch (dbError) {
@@ -495,7 +717,7 @@ app.post('/api/import/prospection', async (req, res, next) => {
       });
     }
 
-    if (!supabase) {
+    if (!supabase && !useMemoryStore) {
       return res.status(500).json({
         success: false,
         error: 'Database not configured'
@@ -553,18 +775,24 @@ app.post('/api/import/prospection', async (req, res, next) => {
     }
 
     // Insert into database
-    const { data: inserted, error: insertError } = await supabase
-      .from('clients')
-      .insert(validClients)
-      .select();
+    let inserted = [];
+    if (useMemoryStore) {
+      inserted = memoryDb.insertClients(validClients);
+    } else {
+      const result = await supabase
+        .from('clients')
+        .insert(validClients)
+        .select();
 
-    if (insertError) {
-      console.error('[ERROR] Database insertion failed for /api/import/prospection:', insertError);
-      return res.status(500).json({
-        success: false,
-        error: 'Database insertion failed',
-        details: insertError.message
-      });
+      if (result.error) {
+        console.error('[ERROR] Database insertion failed for /api/import/prospection:', result.error);
+        return res.status(500).json({
+          success: false,
+          error: 'Database insertion failed',
+          details: result.error.message
+        });
+      }
+      inserted = result.data || [];
     }
 
     console.log(`[${new Date().toISOString()}] Imported ${inserted.length} prospects via API`);
@@ -584,14 +812,23 @@ app.post('/api/import/prospection', async (req, res, next) => {
 // Get clients endpoint
 app.get('/api/clients', async (req, res, next) => {
   try {
+    const { status, limit = 100, offset = 0 } = req.query;
+
+    if (useMemoryStore) {
+      const data = memoryDb.listClients({ status, limit, offset });
+      return res.status(200).json({
+        success: true,
+        count: data.length,
+        clients: data
+      });
+    }
+
     if (!supabase) {
       return res.status(500).json({
         success: false,
         error: 'Database not configured'
       });
     }
-
-    const { status, limit = 100, offset = 0 } = req.query;
 
     let query = supabase
       .from('clients')
@@ -623,6 +860,19 @@ app.get('/api/clients', async (req, res, next) => {
 // Lead score endpoint
 app.get('/api/clients/lead-score', async (req, res, next) => {
   try {
+    const { minScore = 0, limit = 100 } = req.query;
+    const min = parseInt(minScore);
+    const lim = parseInt(limit);
+
+    if (useMemoryStore) {
+      const clients = memoryDb.leadScores({ limit: lim, minScore: min });
+      return res.status(200).json({
+        success: true,
+        count: clients.length,
+        clients
+      });
+    }
+
     if (!supabase) {
       return res.status(500).json({
         success: false,
@@ -630,20 +880,18 @@ app.get('/api/clients/lead-score', async (req, res, next) => {
       });
     }
 
-    const { minScore = 0, limit = 100 } = req.query;
-
     const { data, error } = await supabase
       .from('clients')
       .select('*')
       .order('lead_score', { ascending: false })
-      .range(0, parseInt(limit) - 1);
+      .range(0, lim - 1);
 
     if (error) {
       console.error('[ERROR] Failed to fetch lead scores:', error);
       throw error;
     }
 
-    const filtered = (data || []).filter(c => (c.lead_score ?? 0) >= parseInt(minScore));
+    const filtered = (data || []).filter(c => (c.lead_score ?? 0) >= min);
 
     res.status(200).json({
       success: true,
@@ -676,6 +924,44 @@ app.post('/api/auth/logout', async (_req, res) => {
 // Create client endpoint
 app.post('/api/clients', async (req, res, next) => {
   try {
+    const payload = validateContact(req.body);
+
+    const clientData = {
+      company: payload.company,
+      address: payload.address,
+      postal_code: payload.postalCode,
+      city: payload.city,
+      status: payload.status,
+      client_since: payload.clientSince || null,
+      opportunity_score: payload.opportunityScore || null,
+      primary_contact: payload.primaryContact,
+      secondary_contact: payload.secondaryContact || null,
+      additional_contacts: payload.additionalContacts || [],
+      social: payload.social || {},
+      appointment: payload.appointment || null,
+      additional_appointments: payload.additionalAppointments || [],
+    };
+
+    const leadScoreInput = {
+      first_name: payload.primaryContact?.name,
+      last_name: payload.company,
+      phone: payload.primaryContact?.phone,
+      email: payload.primaryContact?.email,
+      status: payload.status,
+    };
+    clientData.lead_score = computeLeadScore(leadScoreInput);
+
+    // Insert into database
+    if (useMemoryStore) {
+      const created = memoryDb.insertClient(clientData);
+      console.log(`[${new Date().toISOString()}] Created client (memory): ${created.id} (${payload.company})`);
+      return res.status(201).json({
+        success: true,
+        message: 'Client created successfully',
+        client: created
+      });
+    }
+
     if (!supabase) {
       return res.status(500).json({
         success: false,
@@ -683,57 +969,6 @@ app.post('/api/clients', async (req, res, next) => {
       });
     }
 
-    const { name, phone_number, email, description } = req.body;
-
-    // Server-side validation
-    const errors = [];
-
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      errors.push('name is required and must be a non-empty string');
-    }
-
-    if (!phone_number || typeof phone_number !== 'string' || phone_number.trim().length === 0) {
-      errors.push('phone_number is required and must be a non-empty string');
-    }
-
-    if (email && typeof email === 'string' && email.trim().length > 0) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        errors.push('email must be a valid email address');
-      }
-    }
-
-    if (description && typeof description === 'string' && description.length > 10000) {
-      errors.push('description must be less than 10000 characters');
-    }
-
-    if (errors.length > 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed',
-        validationErrors: errors
-      });
-    }
-
-    // Prepare client data for database
-    // Map name to last_name (required), first_name can be empty
-    // If name contains space, split it; otherwise use as last_name
-    const nameParts = name.trim().split(/\s+/);
-    const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ') : null;
-    const lastName = nameParts[nameParts.length - 1];
-
-    const clientData = {
-      last_name: lastName,
-      first_name: firstName,
-      phone: phone_number.trim(),
-      email: email && email.trim().length > 0 ? email.trim() : null,
-      notes: description && description.trim().length > 0 ? description.trim() : null,
-      status: 'new'
-    };
-
-    clientData.lead_score = computeLeadScore(clientData);
-
-    // Insert into database
     const { data, error } = await supabase
       .from('clients')
       .insert(clientData)
@@ -745,7 +980,7 @@ app.post('/api/clients', async (req, res, next) => {
       throw error;
     }
 
-    console.log(`[${new Date().toISOString()}] Created client: ${data.id} (${lastName})`);
+    console.log(`[${new Date().toISOString()}] Created client: ${data.id} (${payload.company})`);
 
     res.status(201).json({
       success: true,
@@ -753,6 +988,13 @@ app.post('/api/clients', async (req, res, next) => {
       client: data
     });
   } catch (error) {
+    if (error.validationErrors) {
+      return res.status(400).json({
+        success: false,
+        error: 'Validation failed',
+        validationErrors: error.validationErrors
+      });
+    }
     next(error);
   }
 });
@@ -760,14 +1002,28 @@ app.post('/api/clients', async (req, res, next) => {
 // Get single client endpoint
 app.get('/api/clients/:id', async (req, res, next) => {
   try {
+    const { id } = req.params;
+
+    if (useMemoryStore) {
+      const client = memoryDb.getClient(id);
+      if (!client) {
+        return res.status(404).json({
+          success: false,
+          error: 'Client not found'
+        });
+      }
+      return res.status(200).json({
+        success: true,
+        client
+      });
+    }
+
     if (!supabase) {
       return res.status(500).json({
         success: false,
         error: 'Database not configured'
       });
     }
-
-    const { id } = req.params;
 
     const { data, error } = await supabase
       .from('clients')
@@ -792,6 +1048,49 @@ app.get('/api/clients/:id', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
+});
+
+// Appointment conflict detection
+app.post('/api/appointments/validate', (req, res) => {
+  const parsed = appointmentRequestSchema.safeParse(req.body.appointment);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_APPOINTMENT',
+        message: parsed.error.issues.map((i) => i.message).join(', '),
+      },
+    });
+  }
+  const existing = Array.isArray(req.body.existingAppointments) ? req.body.existingAppointments : [];
+  const conflicts = detectConflicts(parsed.data, existing);
+  return res.json({
+    success: true,
+    conflicts,
+    travelCheck: conflicts.filter((c) => c.code === 'TRAVEL_TOO_TIGHT').length,
+  });
+});
+
+// Daily planning (priority + proximity, deterministic & explainable)
+app.post('/api/appointments/plan', (req, res) => {
+  const parsed = planRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'INVALID_PLAN_REQUEST',
+        message: parsed.error.issues.map((i) => i.message).join(', '),
+      },
+    });
+  }
+  const result = planDay(parsed.data.appointments, {
+    date: parsed.data.date,
+    startLocation: parsed.data.startLocation,
+  });
+  if (!result.success) {
+    return res.status(400).json({ success: false, error: result.error });
+  }
+  return res.json(result);
 });
 
 // Chat API endpoint (kept for compatibility)
@@ -838,3 +1137,6 @@ app.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] Health check available at http://localhost:${PORT}/api/health`);
   console.log(`[${new Date().toISOString()}] Database setup check available at http://localhost:${PORT}/api/setup/database`);
 });
+
+// Voice routes
+app.use('/api/voice', createVoiceRouter({ memoryDb, supabase, useMemoryStore }));

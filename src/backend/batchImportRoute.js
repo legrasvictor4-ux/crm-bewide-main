@@ -3,7 +3,7 @@ import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 
 const router = express.Router();
 
@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   filename: (req, file, cb) => {
     // Conserver la structure de dossiers dans le nom du fichier
     const relativePath = file.originalname.replace(/\\/g, '/');
-    cb(null, `${uuidv4()}_${path.basename(relativePath)}`);
+    cb(null, `${randomUUID()}_${path.basename(relativePath)}`);
   }
 });
 

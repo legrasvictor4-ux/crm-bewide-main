@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MapPin, Clock, CheckCircle2, AlertCircle, XCircle, Phone, Mail, Building, X, Map, Loader2, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import AddClientDialog from "@/components/AddClientDialog";
 import ClientRowActions from "@/components/ClientRowActions";
+import { useClients } from "@/hooks/use-clients";
+import type { Client } from "@/services/clients";
 
 interface Prospection {
   id: string;
@@ -38,50 +38,31 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
   const [selectedProspection, setSelectedProspection] = useState<Prospection | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
 
-  // Fetch clients from database
-  const { data: clientsData, isLoading, error, refetch } = useQuery({
-    queryKey: ['clients', filter, refreshTrigger, minScore, sortByScore, search],
-    queryFn: async () => {
-      let query = supabase
-        .from('clients')
-        .select('*')
-        .order(sortByScore ? 'lead_score' : 'date_created', { ascending: false });
-
-      if (filter !== 'all') {
-        query = query.eq('status', filter);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        throw error;
-      }
-
-      // Transform database format to Prospection format
-      return (data || [])
-        .filter(c => (c.lead_score ?? 0) >= minScore)
-        .filter(c => {
-          const term = search.toLowerCase();
-          return !term || (c.company || `${c.first_name || ''} ${c.last_name}`.toLowerCase().includes(term));
-        })
-        .map((client): Prospection => ({
-        id: client.id,
-        name: client.company || `${client.first_name || ''} ${client.last_name}`.trim() || 'Client sans nom',
-        arrondissement: client.arrondissement || null,
-        address: client.address || null,
-        postalCode: client.postal_code || null,
-        city: client.city || null,
-        phone: client.phone || null,
-        email: client.email || null,
-        status: client.status as Prospection['status'],
-        contact: client.contact || null,
-        nextAction: client.next_action || null,
-        date: client.date_created || new Date().toISOString(),
-        notes: client.notes || null,
-        lead_score: client.lead_score
-      }));
-    },
+  const mapToProspection = (client: Client): Prospection => ({
+    id: client.id,
+    name: client.company || `${client.first_name || ""} ${client.last_name || ""}`.trim() || "Client sans nom",
+    arrondissement: client.arrondissement || null,
+    address: client.address || null,
+    postalCode: client.postal_code || null,
+    city: client.city || null,
+    phone: client.phone || null,
+    email: client.email || null,
+    status: client.status as Prospection["status"],
+    contact: client.contact || null,
+    nextAction: client.next_action || null,
+    date: client.date_created || new Date().toISOString(),
+    notes: client.notes || null,
+    lead_score: client.lead_score,
   });
+
+  const { data: clientsData, isLoading, error, refetch } = useClients({
+    filter,
+    minScore,
+    sortByScore,
+    search,
+  });
+
+  const prospections = useMemo(() => (clientsData || []).map(mapToProspection), [clientsData]);
 
   // Refetch when refreshTrigger changes
   useEffect(() => {
@@ -89,8 +70,6 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
       refetch();
     }
   }, [refreshTrigger, refetch]);
-
-  const prospections = clientsData || [];
 
   const getStatusIcon = (status: string) => {
     switch (status) {

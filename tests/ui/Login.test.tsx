@@ -30,7 +30,7 @@ describe("Login page", () => {
     );
     fireEvent.change(screen.getByPlaceholderText(/vous@example.com/i), { target: { value: "test@example.com" } });
     fireEvent.change(screen.getByPlaceholderText(/\*\*\*\*/i), { target: { value: "secret" } });
-    fireEvent.click(screen.getByText(/Continuer/i));
+    fireEvent.click(screen.getByTestId("login-submit"));
     await waitFor(() => expect(screen.queryByText(/Échec de la connexion/i)).not.toBeInTheDocument());
   });
 

@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Mic, Calendar, Map, Users, TrendingUp, Clock, Sparkles, Zap, ArrowRight, FileSpreadsheet } from "lucide-react";
+import { Mic, Map, Users, TrendingUp, Clock, Sparkles, ArrowRight, FileSpreadsheet, Download, LineChart } from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import ProspectionList from "@/components/ProspectionList";
 import ExcelUpload from "@/components/ExcelUpload";
-import StatsCard from "@/components/StatsCard";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import AIChatWidget from "@/components/AIChatWidget";
 import ActionBar from "@/components/ActionBar";
 import LeadScoreLegend from "@/components/LeadScoreLegend";
 import AddClientDialog from "@/components/AddClientDialog";
+import KpiCard from "@/components/dashboard/KpiCard";
+import TrendLine from "@/components/dashboard/TrendLine";
+import MiniBarChart from "@/components/dashboard/MiniBarChart";
+import RadarChart from "@/components/dashboard/RadarChart";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -22,77 +24,121 @@ const Index = () => {
   const [sortByScore, setSortByScore] = useState(false);
   const [search, setSearch] = useState("");
 
+  // Sample data; replace with live queries when available
+  const kpiData = [
+    { label: "Total Clients", value: "2 430", diff: "+8.2%", tone: "up" as const, icon: <Users className="h-4 w-4" /> },
+    { label: "Lead Score moyen", value: "64", diff: "+3.1%", tone: "up" as const, icon: <TrendingUp className="h-4 w-4" /> },
+    { label: "Nouveaux cette semaine", value: "58", diff: "+12", tone: "up" as const, icon: <Clock className="h-4 w-4" /> },
+    { label: "Taux de conversion", value: "27%", diff: "-1.4%", tone: "down" as const, icon: <LineChart className="h-4 w-4" /> },
+    { label: "Imports Excel", value: "12", diff: "+3", tone: "up" as const, icon: <Download className="h-4 w-4" /> },
+  ];
+
+  const trendData = [
+    { label: "Lun", value: 22 }, // nouveaux leads/clients générés
+    { label: "Mar", value: 28 },
+    { label: "Mer", value: 35 },
+    { label: "Jeu", value: 42 },
+    { label: "Ven", value: 31 },
+    { label: "Sam", value: 18 },
+    { label: "Dim", value: 24 },
+  ];
+
+  const sourcesData = [
+    { label: "Social (posts IA)", value: 48 },
+    { label: "Prospection (scripts IA)", value: 22 },
+    { label: "Référencement local", value: 18 },
+    { label: "Email nurturing", value: 12 },
+  ];
+
+  const leadScoreData = [
+    { label: "80-100", value: 32 },
+    { label: "60-79", value: 54 },
+    { label: "40-59", value: 67 },
+    { label: "< 40", value: 18 },
+  ];
+
+  const browserData = [
+    { label: "Social", value: 62 },
+    { label: "Prospection", value: 28 },
+    { label: "Référencement", value: 34 },
+    { label: "Email", value: 22 },
+  ];
+
+  const platformData = [
+    { label: "Desktop", value: 71 },
+    { label: "Mobile", value: 23 },
+    { label: "Tablet", value: 6 },
+  ];
+
+  const sessionData = [
+    { label: "<1 min", value: 14 },
+    { label: "1-3 min", value: 38 },
+    { label: "3-10 min", value: 29 },
+    { label: "10+ min", value: 19 },
+  ];
+
   const handleImportSuccess = () => {
     setRefreshTrigger(prev => prev + 1);
     setShowExcelUpload(false);
   };
 
   return (
-    <>
-    <main className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-accent/60 flex items-center justify-center">
-                <Sparkles className="h-5 w-5 text-accent-foreground" />
+    <main className="min-h-screen bg-background text-foreground">
+      {/* Workspace Action Bar */}
+      <div className="sticky top-16 z-30">
+        <div className="bg-card backdrop-blur border border-border rounded-b-3xl shadow-md">
+          <div className="flex flex-col gap-3 p-5">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="flex items-center gap-2 flex-1">
+                <Sparkles className="h-4 w-4 text-accent" />
+                <span className="text-sm font-semibold">Workspace Prospection</span>
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">BeWide AI</h1>
-                <p className="text-xs text-muted-foreground">CRM Prospection</p>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="secondary" onClick={() => setShowExcelUpload(true)} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Import
+                </Button>
+                <Button size="sm" onClick={() => setShowAddDialog(true)} className="gap-2">
+                  <Sparkles className="h-4 w-4" /> Ajouter un client
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowRecorder(true)} className="gap-2">
+                  <Mic className="h-4 w-4" /> Dictée
+                </Button>
               </div>
             </div>
-            <nav className="flex items-center gap-2">
-              <Link to="/agenda" className="nav-link flex items-center gap-2">
-                <Calendar className="h-4 w-4" />
-                <span className="hidden sm:inline">Agenda</span>
-              </Link>
-              <Link to="/map" className="nav-link flex items-center gap-2">
-                <Map className="h-4 w-4" />
-                <span className="hidden sm:inline">Carte</span>
-              </Link>
-              <Link to="/pro-tools">
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Zap className="h-4 w-4" />
-                  <span className="hidden sm:inline">Pro Tools</span>
-                </Button>
-              </Link>
-              <Link to="/ai-features">
-                <Button size="sm" className="gap-2 shadow-lg shadow-accent/25">
-                  <Sparkles className="h-4 w-4" />
-                  <span className="hidden sm:inline">AI Powers</span>
-                </Button>
-              </Link>
-            </nav>
+            <ActionBar
+              onAdd={() => setShowAddDialog(true)}
+              onImport={() => setShowExcelUpload(true)}
+              onToggleMap={() => navigate("/map")}
+              onSortLeadScore={() => setSortByScore((s) => !s)}
+              onFilterLeadScore={(n) => setMinScore(n)}
+              onClearLeadFilter={() => setMinScore(0)}
+              viewMode={viewMode}
+              setViewMode={setViewMode}
+              search={search}
+              setSearch={setSearch}
+              minScore={minScore}
+              sortByScore={sortByScore}
+            />
           </div>
         </div>
-      </header>
+      </div>
 
-      <ActionBar
-        onAdd={() => setShowAddDialog(true)}
-        onImport={() => setShowExcelUpload(true)}
-        onToggleMap={() => navigate('/map')}
-        onSortLeadScore={() => setSortByScore((s) => !s)}
-        onFilterLeadScore={(n) => setMinScore(n)}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        search={search}
-        setSearch={setSearch}
-      />
-
-      <div className="container mx-auto px-6 py-8">
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatsCard icon={Users} label="Prospections" value="24" trend="+12%" trendUp />
-          <StatsCard icon={Calendar} label="RDV confirmés" value="8" trend="+25%" trendUp />
-          <StatsCard icon={Clock} label="À relancer" value="5" trend="-8%" trendUp={false} />
-          <StatsCard icon={TrendingUp} label="Conversion" value="33%" trend="+5%" trendUp />
+      <div className="container mx-auto px-6 py-8 space-y-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
+          {kpiData.map((kpi) => (
+            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} diff={kpi.diff} tone={kpi.tone} icon={kpi.icon} />
+          ))}
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <TrendLine title="Évolution des clients" data={trendData} subtitle="7 derniers jours (leads/clients générés)" />
+              <MiniBarChart title="Top canaux d'acquisition" data={sourcesData} />
+              <MiniBarChart title="Répartition lead score" data={leadScoreData} />
+            </div>
+
             <div className="flex items-center justify-between px-1 pb-4">
               <h2 className="text-xl font-bold text-foreground">Prospections</h2>
               <LeadScoreLegend />
@@ -104,9 +150,11 @@ const Index = () => {
               search={search}
             />
           </div>
-          
+
           <div className="space-y-6">
-            {/* Quick Actions */}
+            <RadarChart title="Efficacité des canaux" data={browserData} />
+            <MiniBarChart title="Usage plateformes" data={platformData} />
+            <MiniBarChart title="Durée des sessions" data={sessionData} />
             <div className="card-elevated p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">Actions rapides</h3>
               <div className="space-y-3">
@@ -136,42 +184,6 @@ const Index = () => {
                     <Map className="h-5 w-5" />
                     Planifier un parcours
                   </button>
-                </Link>
-              </div>
-            </div>
-
-            {/* Today's Agenda */}
-            <div className="card-elevated p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-foreground">Aujourd'hui</h3>
-                <Link to="/agenda" className="text-accent text-sm font-medium flex items-center gap-1 hover:gap-2 transition-all">
-                  Voir tout <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="space-y-3">
-                <Link to="/agenda" className="block">
-                  <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-xl hover:bg-secondary transition-colors">
-                    <div className="flex-shrink-0 w-14 text-center">
-                      <div className="text-sm font-bold text-accent">11:00</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">Le Comptoir du Renne</p>
-                      <p className="text-xs text-muted-foreground">3ème arr. - RDV avec la patronne</p>
-                    </div>
-                    <span className="badge-success text-xs px-2 py-1 rounded-lg">RDV</span>
-                  </div>
-                </Link>
-                <Link to="/agenda" className="block">
-                  <div className="flex items-start gap-3 p-3 bg-secondary/50 rounded-xl hover:bg-secondary transition-colors">
-                    <div className="flex-shrink-0 w-14 text-center">
-                      <div className="text-sm font-bold text-accent">14:30</div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground">Zone 11ème arr.</p>
-                      <p className="text-xs text-muted-foreground">5 prospections à faire</p>
-                    </div>
-                    <span className="badge-accent text-xs px-2 py-1 rounded-lg">Terrain</span>
-                  </div>
                 </Link>
               </div>
             </div>
@@ -205,9 +217,7 @@ const Index = () => {
         </div>
       )}
 
-      <AIChatWidget />
     </main>
-    </>
   );
 };
 

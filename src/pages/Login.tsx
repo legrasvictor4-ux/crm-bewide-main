@@ -19,8 +19,9 @@ const Login = () => {
       setError(null);
       await login(payload);
       navigate("/");
-    } catch (e: any) {
-      setError(e.message || "Échec de la connexion");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Echec de la connexion";
+      setError(message);
     } finally {
       setLoading(false);
     }
@@ -35,7 +36,7 @@ const Login = () => {
               <Mail className="h-6 w-6 text-accent" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">Connexion CRM</h1>
-            <p className="text-sm text-muted-foreground">Accédez à votre espace de prospection sécurisé.</p>
+            <p className="text-sm text-muted-foreground">Accedez a votre espace de prospection securisee.</p>
           </div>
 
           <div className="space-y-4">
@@ -47,6 +48,8 @@ const Login = () => {
                   type="email"
                   placeholder="vous@example.com"
                   className="pl-9"
+                  data-testid="login-email"
+                  aria-label="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -60,6 +63,8 @@ const Login = () => {
                   type="password"
                   placeholder="********"
                   className="pl-9"
+                  data-testid="login-password"
+                  aria-label="Mot de passe"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
@@ -69,6 +74,8 @@ const Login = () => {
             <Button
               className="w-full gap-2"
               disabled={loading}
+              data-testid="login-submit"
+              aria-label="Connexion"
               onClick={() => handleLogin({ email, password })}
             >
               Continuer <ArrowRight className="h-4 w-4" />
