@@ -166,10 +166,8 @@ const ContactForm = ({
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="status" className="block mb-1">
-              Statut
-            </Label>
-            <select id="status" {...form.register("status")} className="mt-1 rounded-md border px-3 py-2" data-testid="status">
+            <Label htmlFor="status">Statut</Label>
+            <select id="status" {...form.register("status")} className="rounded-md border px-3 py-2" data-testid="status">
               <option value="client">Client</option>
               <option value="prospect">Prospect</option>
             </select>
@@ -314,10 +312,6 @@ const ContactForm = ({
           <Textarea placeholder="Résumé" {...form.register("appointment.summary")} data-testid="appointment.summary" />
           <Input placeholder="Prochain rdv" type="datetime-local" {...form.register("appointment.nextDate")} />
           <Input placeholder="Objectif prochain rdv" {...form.register("appointment.nextObjective")} />
-          <label className="flex items-center gap-2 text-sm font-medium col-span-2">
-            <input type="checkbox" {...form.register("appointment.whatsappFollowUp")} data-testid="appointment.whatsappFollowUp" />
-            Relancer via WhatsApp
-          </label>
         </CardContent>
         {conflicts.length > 0 && (
           <div className="px-6 pb-4 space-y-2">
@@ -388,3 +382,4 @@ const ContactForm = ({
 };
 
 export default ContactForm;
+

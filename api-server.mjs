@@ -321,11 +321,30 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
     });
 
     const normalizeHeader = (value) =>
-      (value || '').toString().toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      (value || '')
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // remove diacritics
+        .replace(/[^a-z0-9]/g, ''); // strip spaces, punctuation, quotes
 
     const enhancedHeaderMap = {
       first_name: ['first_name', 'prenom', 'firstname'],
-      last_name: ['last_name', 'nom', 'name', 'lastname', 'nom de famille', 'nom de', 'enseigne'],
+      last_name: [
+        'last_name',
+        'nom',
+        'name',
+        'lastname',
+        'nom de famille',
+        'nom de',
+        'enseigne',
+        'nom entreprise',
+        'nom de l entreprise',
+        "nom de l'entreprise",
+        'nomdelentreprise',
+        'nomentreprise',
+        'entreprise'
+      ],
       email: ['email', 'e-mail', 'mail', 'courriel'],
       phone: ['phone', 'telephone', 'tel', 'mobile'],
       company: ['company', 'entreprise', 'societe', 'compagnie', 'enseigne'],
@@ -335,7 +354,7 @@ app.post('/api/import/excel', upload.single('file'), async (req, res, next) => {
       arrondissement: ['arrondissement', 'arr', 'arrond'],
       contact: ['contact', 'contact person', 'personne contact'],
       notes: ['notes', 'note', 'commentaires', 'commentaire', 'remarques', 'synthese'],
-      status: ['status', 'statut'],
+      status: ['status', 'statut', 'statut opportunite', 'statut opportunité'],
       activity: ['activite', 'secteur'],
       role: ['fonction', 'fonctions', 'role'],
       instagram_account: ['instagram compte', 'compte instagram', 'instagram', 'compte'],

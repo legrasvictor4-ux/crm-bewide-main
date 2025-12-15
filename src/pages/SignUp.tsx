@@ -1,26 +1,28 @@
 import { useState } from "react";
-import { Mail, Lock, ArrowRight, Apple, Chrome } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Chrome } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
 
-const Login = () => {
+const SignUp = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (payload: { email?: string; password?: string; provider?: "google" | "apple" }) => {
+  const handleSignUp = async () => {
     try {
       setLoading(true);
       setError(null);
-      await login(payload);
+      // Placeholder: reuse login for demo; replace with real sign-up API.
+      await login({ email, password });
       navigate("/");
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Echec de la connexion";
+      const message = e instanceof Error ? e.message : "Echec de l'inscription";
       setError(message);
     } finally {
       setLoading(false);
@@ -37,11 +39,24 @@ const Login = () => {
               <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#5f6afc] to-[#7b8bff] shadow-lg shadow-[#5f6afc33]">
                 <span className="text-white text-lg font-semibold">BW</span>
               </div>
-              <h1 className="text-2xl font-semibold text-foreground">Welcome Back!</h1>
-              <p className="text-sm text-muted-foreground">Connectez-vous à votre espace Bewide.</p>
+              <h1 className="text-2xl font-semibold text-foreground">Create your account</h1>
+              <p className="text-sm text-muted-foreground">Rejoignez Bewide pour votre prospection.</p>
             </div>
 
             <div className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-muted-foreground">Full name</label>
+                <div className="relative">
+                  <User className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
+                  <Input
+                    type="text"
+                    placeholder="Prénom Nom"
+                    className="pl-10 h-11 rounded-xl bg-white/45 border border-white/50 shadow-inner shadow-white/30 dark:bg-white/5 dark:border-slate-800"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">Email</label>
                 <div className="relative">
@@ -50,8 +65,6 @@ const Login = () => {
                     type="email"
                     placeholder="email@bewide.com"
                     className="pl-10 h-11 rounded-xl bg-white/45 border border-white/50 shadow-inner shadow-white/30 dark:bg-white/5 dark:border-slate-800"
-                    data-testid="login-email"
-                    aria-label="Email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
@@ -65,23 +78,18 @@ const Login = () => {
                     type="password"
                     placeholder="••••••••"
                     className="pl-10 h-11 rounded-xl bg-white/45 border border-white/50 shadow-inner shadow-white/30 dark:bg-white/5 dark:border-slate-800"
-                    data-testid="login-password"
-                    aria-label="Mot de passe"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                   />
-                  <button className="absolute right-3 top-2.5 text-xs text-primary hover:underline">Forgot Password?</button>
                 </div>
               </div>
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
                 className="w-full h-11 rounded-xl bg-gradient-to-r from-[#5f6afc] to-[#7b8bff] text-white shadow-lg shadow-[#5f6afc44] backdrop-blur"
                 disabled={loading}
-                data-testid="login-submit"
-                aria-label="Connexion"
-                onClick={() => handleLogin({ email, password })}
+                onClick={handleSignUp}
               >
-                Login <ArrowRight className="h-4 w-4" />
+                Sign Up <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
 
@@ -94,30 +102,26 @@ const Login = () => {
               </div>
             </div>
 
-            <Button variant="outline" className="w-full h-11 rounded-xl justify-start gap-2 bg-white/60 border border-white/50 dark:bg-white/5 dark:border-slate-800 backdrop-blur">
-              <Mail className="h-4 w-4 text-primary" /> OTP Login? Click here
-            </Button>
-
             <Button
               variant="outline"
               className="w-full h-11 rounded-xl justify-start gap-2 bg-white/80 border border-white/50 dark:bg-white/5 dark:border-slate-800 backdrop-blur"
               disabled={loading}
-              onClick={() => handleLogin({ provider: "google" })}
+              onClick={() => login({ provider: "google" })}
             >
               <Chrome className="h-4 w-4 text-primary" /> Sign up with Google
             </Button>
 
             <div className="text-center text-xs text-muted-foreground space-y-1">
               <div>
-                Don’t have an account?{" "}
-                <button className="text-primary hover:underline" onClick={() => navigate("/signup")}>
-                  Sign Up
+                Already have an account?{" "}
+                <button className="text-primary hover:underline" onClick={() => navigate("/login")}>
+                  Login
                 </button>
               </div>
               <div>
-                Trouble logging in?{" "}
+                Trouble signing up?{" "}
                 <button className="text-primary hover:underline" onClick={() => navigate("/support")}>
-                  Click Here
+                  Contact support
                 </button>
               </div>
             </div>
@@ -128,4 +132,4 @@ const Login = () => {
   );
 };
 
-export default Login;
+export default SignUp;

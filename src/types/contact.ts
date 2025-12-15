@@ -32,6 +32,7 @@ export const appointmentSchema = z
     summary: z.string().trim().optional(),
     nextDate: z.string().trim().optional(),
     nextObjective: z.string().trim().optional(),
+    whatsappFollowUp: z.boolean().optional(),
   })
   .refine(
     (val) => {
