@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { login as loginService, logout as logoutService } from "@/services/auth";
 
 interface AuthContextValue {
   token: string | null;
@@ -24,22 +25,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [email]);
 
   const login = async (payload: { email?: string; password?: string; provider?: "google" | "apple" }) => {
-    const res = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Échec de la connexion");
-    }
-    const data = await res.json();
+    const data = await loginService(payload.email ?? "", payload.password ?? "");
     setToken(data.token);
-    setEmail(data.email || payload.email || null);
+    setEmail(data.user.email || payload.email || null);
   };
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" }).catch(() => undefined);
+    await logoutService().catch(() => undefined);
     setToken(null);
     setEmail(null);
   };

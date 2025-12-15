@@ -7,12 +7,21 @@ interface VoiceRecorderProps {
   onClose: () => void;
 }
 
+interface AnalysisResult {
+  restaurantName?: string;
+  location?: string;
+  interestLevel?: string;
+  nextAction?: { type?: string; notes?: string };
+  sentiment?: { openness?: number; urgency?: number };
+}
+
 const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisResult, setAnalysisResult] = useState<any>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
@@ -72,41 +81,87 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
     }
   };
 
+  const saveProspection = async (result: AnalysisResult, transcription: string) => {
+    setIsSaving(true);
+    try {
+      const payload = {
+        last_name: result.restaurantName || "Prospection vocale",
+        company: result.restaurantName || null,
+        city: result.location || null,
+        status: "new",
+        notes: transcription,
+        imported_at: new Date().toISOString(),
+        metadata: {
+          source: "voice_recorder",
+          analysis: result,
+        },
+      };
+
+      const { error } = await supabase.from("clients").insert(payload);
+      if (error) throw error;
+
+      toast({
+        title: "Prospection enregistrée",
+        description: "Le client a été ajouté à la liste avec la transcription en notes.",
+      });
+    } catch (error) {
+      console.error("Save error:", error);
+      toast({
+        title: "Enregistrement impossible",
+        description: "Vérifie la connexion à Supabase (URL/keys) ou réessaie.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (audioBlob) {
       setIsAnalyzing(true);
-      
+
       try {
-        // Convert audio to base64
+        // Convert audio to base64 (placeholder for future upload)
         const reader = new FileReader();
         reader.readAsDataURL(audioBlob);
         reader.onloadend = async () => {
-          const base64Audio = reader.result as string;
-          
-          // First, transcribe (mock for now - would use Whisper API)
-          const mockTranscription = `J'ai rencontré le restaurant Le Marais dans le 11ème arrondissement. 
-          Le patron était présent et très intéressé par nos services. 
-          Ils ont Instagram et Facebook mais peu de followers. 
-          Pas d'agence actuellement. Budget moyen. 
-          RDV confirmé pour jeudi prochain à 14h pour discuter d'une offre complète.`;
-          
-          // Analyze with AI
-          const { data, error } = await supabase.functions.invoke('analyze-voice-data', {
-            body: { transcription: mockTranscription }
-          });
-          
-          if (error) throw error;
-          
-          if (data?.extractedData) {
-            setAnalysisResult(data.extractedData);
-            toast({
-              title: "✨ Analyse IA terminée",
-              description: "Toutes les données ont été extraites avec succès",
+          // Mock transcription for now; replace with Whisper/OpenAI call
+          const mockTranscription = `J'ai rencontre le restaurant Le Marais dans le 11eme arrondissement.
+Le patron etait present et tres interesse par nos services.
+Ils ont Instagram et Facebook mais peu de followers.
+Pas d'agence actuellement. Budget moyen.
+RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
+
+          let extracted: AnalysisResult | null = null;
+          try {
+            const { data, error } = await supabase.functions.invoke("analyze-voice-data", {
+              body: { transcription: mockTranscription },
             });
+            if (error) throw error;
+            extracted = data?.extractedData || null;
+          } catch (err) {
+            console.warn("analyze-voice-data unavailable, using fallback parse.", err);
           }
+
+          const parsedResult: AnalysisResult =
+            extracted || {
+              restaurantName: "Prospection vocale",
+              location: null,
+              interestLevel: "unknown",
+              nextAction: { type: "follow_up", notes: "Ajouté via prospection vocale" },
+            };
+
+          setAnalysisResult(parsedResult);
+          await saveProspection(parsedResult, mockTranscription);
+          toast({
+            title: "Prospection enregistrée",
+            description: extracted
+              ? "Analyse IA réussie et client créé."
+              : "Fonction d'analyse absente : sauvegarde effectuée avec les champs par défaut.",
+          });
         };
       } catch (error) {
-        console.error('Analysis error:', error);
+        console.error("Analysis error:", error);
         toast({
           title: "Erreur",
           description: "Impossible d'analyser l'enregistrement",
@@ -131,16 +186,12 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
           <h2 className="text-2xl font-bold text-foreground">
             {isRecording ? "Enregistrement..." : audioBlob ? "Enregistrement terminé" : "Nouvelle prospection"}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-6 w-6" />
           </button>
         </div>
 
         <div className="flex flex-col items-center gap-8">
-          {/* Recording Button */}
           <div className="relative">
             <button
               onClick={isRecording ? stopRecording : startRecording}
@@ -153,52 +204,34 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
                   : "bg-accent hover:bg-accent/90 hover:scale-105 shadow-md shadow-accent/30"
               }`}
             >
-              <div
-                className={`absolute inset-0 rounded-full ${
-                  isRecording ? "bg-destructive/20 animate-ping" : ""
-                }`}
-              />
+              <div className={`absolute inset-0 rounded-full ${isRecording ? "bg-destructive/20 animate-ping" : ""}`} />
               <div className="relative flex items-center justify-center h-full">
                 {isRecording ? (
                   <Square className="h-12 w-12 text-destructive-foreground fill-current" />
                 ) : (
-                  <Mic
-                    className={`h-12 w-12 ${
-                      audioBlob ? "text-muted-foreground" : "text-accent-foreground"
-                    }`}
-                  />
+                  <Mic className={`h-12 w-12 ${audioBlob ? "text-muted-foreground" : "text-accent-foreground"}`} />
                 )}
               </div>
             </button>
           </div>
 
-          {/* Timer / Instruction */}
           <div className="text-center">
             {isRecording ? (
               <div className="space-y-2">
-                <p className="text-3xl font-bold text-foreground tabular-nums">
-                  {formatTime(recordingTime)}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Appuyez sur stop pour terminer
-                </p>
+                <p className="text-3xl font-bold text-foreground tabular-nums">{formatTime(recordingTime)}</p>
+                <p className="text-sm text-muted-foreground">Appuyez sur stop pour terminer</p>
               </div>
             ) : audioBlob ? (
-              <p className="text-sm text-muted-foreground">
-                Enregistrement de {formatTime(recordingTime)} prêt
-              </p>
+              <p className="text-sm text-muted-foreground">Enregistrement de {formatTime(recordingTime)} prêt</p>
             ) : (
-              <p className="text-sm text-muted-foreground">
-                Appuyez sur le micro pour commencer
-              </p>
+              <p className="text-sm text-muted-foreground">Appuyez sur le micro pour commencer</p>
             )}
           </div>
 
-          {/* Submit Button */}
           {audioBlob && !analysisResult && (
             <button
               onClick={handleSubmit}
-              disabled={isAnalyzing}
+              disabled={isAnalyzing || isSaving}
               className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-lg hover:opacity-90 transition-opacity font-medium animate-in fade-in slide-in-from-bottom-4 duration-300"
             >
               {isAnalyzing ? (
@@ -206,24 +239,28 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Analyse IA en cours...
                 </>
+              ) : isSaving ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  Enregistrement...
+                </>
               ) : (
                 <>
                   <Send className="h-5 w-5" />
-                  Analyser avec IA
+                  Analyser et enregistrer
                 </>
               )}
             </button>
           )}
         </div>
 
-        {/* Analysis Results */}
         {analysisResult && (
           <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center gap-2 text-accent">
               <Sparkles className="h-5 w-5" />
-              <h3 className="font-bold text-lg text-foreground">Analyse IA Complète</h3>
+              <h3 className="font-bold text-lg text-foreground">Analyse IA complète</h3>
             </div>
-            
+
             <div className="grid gap-3">
               {analysisResult.restaurantName && (
                 <div className="p-3 bg-secondary rounded-lg">
@@ -231,27 +268,27 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
                   <p className="font-semibold text-foreground">{analysisResult.restaurantName}</p>
                 </div>
               )}
-              
+
               {analysisResult.location && (
                 <div className="p-3 bg-secondary rounded-lg">
                   <p className="text-xs text-muted-foreground">Localisation</p>
                   <p className="font-semibold text-foreground">{analysisResult.location}</p>
                 </div>
               )}
-              
+
               <div className="p-3 bg-secondary rounded-lg">
                 <p className="text-xs text-muted-foreground">Niveau d'intérêt</p>
-                <p className="font-semibold text-foreground capitalize">{analysisResult.interestLevel?.replace(/_/g, ' ')}</p>
+                <p className="font-semibold text-foreground capitalize">{analysisResult.interestLevel?.replace(/_/g, " ")}</p>
               </div>
-              
+
               {analysisResult.nextAction && (
                 <div className="p-3 bg-accent/10 border border-accent/20 rounded-lg">
                   <p className="text-xs text-muted-foreground">Prochaine action</p>
-                  <p className="font-semibold text-accent capitalize">{analysisResult.nextAction.type?.replace(/_/g, ' ')}</p>
+                  <p className="font-semibold text-accent capitalize">{analysisResult.nextAction.type?.replace(/_/g, " ")}</p>
                   <p className="text-sm text-foreground mt-1">{analysisResult.nextAction.notes}</p>
                 </div>
               )}
-              
+
               <div className="p-3 bg-secondary rounded-lg">
                 <p className="text-xs text-muted-foreground mb-2">Scores sentiment</p>
                 <div className="grid grid-cols-2 gap-2 text-sm">
@@ -266,7 +303,7 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
                 </div>
               </div>
             </div>
-            
+
             <button
               onClick={onClose}
               className="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium"
@@ -276,7 +313,6 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
           </div>
         )}
 
-        {/* Tips */}
         {!isRecording && !audioBlob && (
           <div className="mt-8 p-4 bg-secondary rounded-lg">
             <p className="text-sm text-muted-foreground">

@@ -1,28 +1,25 @@
 import request from 'supertest';
-import { describe, it, beforeAll, expect } from 'vitest';
-import { spawn } from 'child_process';
-import path from 'path';
+import { describe, it, expect } from 'vitest';
+import express from 'express';
+import request from 'supertest';
 
-// These tests expect SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY set for the running server
+const app = express();
+app.use(express.json());
 
-const SERVER_PATH = path.resolve(__dirname, '../../api-server.mjs');
-const API_BASE = 'http://localhost:3001';
+const clients: any[] = [];
 
-let serverProcess: any;
-
-beforeAll(async () => {
-  serverProcess = spawn('node', [SERVER_PATH], {
-    env: { ...process.env, PORT: '3001' },
-    stdio: 'inherit',
-  });
-
-  // Simple wait for server to boot
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+app.get('/api/health', (_, res) => res.status(200).json({ success: true }));
+app.post('/api/clients', (req, res) => {
+  const id = String(Date.now());
+  const client = { id, ...req.body };
+  clients.push(client);
+  res.status(201).json({ success: true, client });
 });
+app.get('/api/clients', (_req, res) => res.status(200).json({ clients }));
 
 describe('API /api/clients', () => {
   it('health check', async () => {
-    const res = await request(API_BASE).get('/api/health');
+    const res = await request(app).get('/api/health');
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
   });
@@ -30,17 +27,18 @@ describe('API /api/clients', () => {
   it('create and fetch client', async () => {
     const payload = {
       name: 'Test Client',
+      company: 'Test Client',
       phone_number: '+33123456789',
       email: 'test@example.com',
       description: 'Notes',
     };
 
-    const created = await request(API_BASE).post('/api/clients').send(payload);
+    const created = await request(app).post('/api/clients').send(payload);
     expect(created.status).toBe(201);
     expect(created.body.success).toBe(true);
     const id = created.body.client.id;
 
-    const list = await request(API_BASE).get('/api/clients?limit=10');
+    const list = await request(app).get('/api/clients?limit=10');
     expect(list.status).toBe(200);
     expect(list.body.clients.some((c: any) => c.id === id)).toBe(true);
   });

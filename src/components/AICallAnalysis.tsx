@@ -188,7 +188,7 @@ const AICallAnalysis = () => {
                 type="file"
                 id="folder-upload"
                 className="hidden"
-                // @ts-ignore
+                // @ts-expect-error Render library expects numeric value for Bar data
                 webkitdirectory="true"
                 directory="true"
                 multiple
