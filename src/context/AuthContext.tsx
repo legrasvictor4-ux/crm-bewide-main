@@ -27,7 +27,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (payload: { email?: string; password?: string; provider?: "google" | "apple" }) => {
     const data = await loginService(payload.email ?? "", payload.password ?? "");
     setToken(data.token);
-    setEmail(data.user.email || payload.email || null);
+    const resolvedEmail = data.email ?? data.user?.email ?? payload.email ?? null;
+    setEmail(resolvedEmail);
   };
 
   const logout = async () => {

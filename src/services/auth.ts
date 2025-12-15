@@ -3,9 +3,10 @@ import { ApiError } from "@/types/api";
 
 export interface AuthResponse {
   token: string;
-  user: {
-    id: string;
-    email: string;
+  email?: string;
+  user?: {
+    id?: string;
+    email?: string;
   };
 }
 

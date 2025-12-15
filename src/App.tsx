@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Map from "./pages/Map";
@@ -16,6 +17,8 @@ import Imports from "./pages/Imports";
 import SettingsPage from "./pages/Settings";
 import UsersPage from "./pages/Users";
 import LogoutPage from "./pages/Logout";
+import SignUp from "./pages/SignUp";
+import Support from "./pages/Support";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
@@ -47,10 +50,13 @@ const App = () => (
       <Toaster />
       <Sonner />
       <AuthProvider>
-        <BrowserRouter>
-          <ErrorBoundary>
-            <Routes>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <BrowserRouter>
+            <ErrorBoundary>
+              <Routes>
             <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<SignUp />} />
+            <Route path="/support" element={<Support />} />
             <Route
               path="/contacts"
               element={
@@ -197,9 +203,10 @@ const App = () => (
                 }
               />
               <Route path="*" element={<NotFound />} />
-            </Routes>
-          </ErrorBoundary>
-        </BrowserRouter>
+              </Routes>
+            </ErrorBoundary>
+          </BrowserRouter>
+        </ThemeProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>
