@@ -19,6 +19,7 @@ import UsersPage from "./pages/Users";
 import LogoutPage from "./pages/Logout";
 import SignUp from "./pages/SignUp";
 import Support from "./pages/Support";
+import ForgotPassword from "./pages/ForgotPassword";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
@@ -56,6 +57,7 @@ const App = () => (
               <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<SignUp />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/support" element={<Support />} />
             <Route
               path="/contacts"
