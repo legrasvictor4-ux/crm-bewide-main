@@ -89,9 +89,14 @@ const Index = () => {
         <div className="bg-card backdrop-blur border border-border rounded-b-3xl shadow-md">
           <div className="flex flex-col gap-3 p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-2 flex-1">
-                <Sparkles className="h-4 w-4 text-accent" />
-                <span className="text-sm font-semibold">Workspace Prospection</span>
+              <div className="flex items-center gap-3 flex-1">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold leading-tight">Workspace Prospection</span>
+                  <span className="text-xs text-muted-foreground leading-tight">Vue synthèse du pipeline et des actions rapides</span>
+                </div>
               </div>
               <div className="flex items-center gap-2">
                 <Button size="sm" variant="secondary" onClick={() => setShowExcelUpload(true)} className="gap-2">
@@ -158,32 +163,31 @@ const Index = () => {
             <div className="card-elevated p-6">
               <h3 className="text-lg font-semibold text-foreground mb-4">Actions rapides</h3>
               <div className="space-y-3">
-                <button
-                  onClick={() => setShowExcelUpload(true)}
-                  className="w-full btn-primary flex items-center justify-center gap-3"
-                >
+                <Button className="w-full justify-center gap-3" onClick={() => setShowExcelUpload(true)}>
                   <FileSpreadsheet className="h-5 w-5" />
                   Importer un fichier Excel
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full justify-center gap-3"
                   onClick={() => setShowRecorder(true)}
-                  className="w-full btn-secondary flex items-center justify-center gap-3"
                 >
                   <Mic className="h-5 w-5" />
                   Nouvelle prospection vocale
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="secondary"
+                  className="w-full justify-center gap-3"
                   onClick={() => setShowAddDialog(true)}
-                  className="w-full btn-secondary flex items-center justify-center gap-3"
                 >
                   <Sparkles className="h-5 w-5" />
                   Ajouter un client
-                </button>
+                </Button>
                 <Link to="/map" className="block">
-                  <button className="w-full btn-secondary flex items-center justify-center gap-3">
+                  <Button variant="ghost" className="w-full justify-center gap-3">
                     <Map className="h-5 w-5" />
                     Planifier un parcours
-                  </button>
+                  </Button>
                 </Link>
               </div>
             </div>

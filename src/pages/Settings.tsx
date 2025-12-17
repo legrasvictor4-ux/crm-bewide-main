@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,13 +11,43 @@ import { useTheme } from "next-themes";
 
 const SettingsPage = () => {
   const { theme, setTheme } = useTheme();
+  const location = useLocation();
+  const [notificationsEnabled, setNotificationsEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = localStorage.getItem("notifications_enabled");
+    return stored === null ? true : stored === "true";
+  });
+  const [dailySummaryEnabled, setDailySummaryEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const stored = localStorage.getItem("notifications_summary_enabled");
+    return stored === null ? false : stored === "true";
+  });
+
+  useEffect(() => {
+    if (location.hash === "#notifications") {
+      document.getElementById("notifications")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [location.hash]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("notifications_enabled", notificationsEnabled ? "true" : "false");
+    if (localStorage.getItem("notifications_enabled") === null) {
+      localStorage.setItem("notifications_enabled", "true");
+    }
+  }, [notificationsEnabled]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    localStorage.setItem("notifications_summary_enabled", dailySummaryEnabled ? "true" : "false");
+  }, [dailySummaryEnabled]);
 
   return (
     <div className="space-y-6 pb-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Paramètres</h1>
-          <p className="text-sm text-muted-foreground">Personnalisez votre profil, vos préférences et l’automatisation.</p>
+          <p className="text-sm text-muted-foreground">Personnalisez votre profil, vos préférences et l'automatisation.</p>
         </div>
         <Button variant="default">Enregistrer</Button>
       </div>
@@ -76,7 +108,7 @@ const SettingsPage = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Préférences de l’application</CardTitle>
+            <CardTitle>Préférences de l'application</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
@@ -112,7 +144,7 @@ const SettingsPage = () => {
               </Select>
             </div>
             <div className="grid gap-2">
-              <Label>Ordre d’affichage des prospects</Label>
+              <Label>Ordre d'affichage des prospects</Label>
               <Select defaultValue="score">
                 <SelectTrigger>
                   <SelectValue />
@@ -145,19 +177,19 @@ const SettingsPage = () => {
               <Textarea placeholder="Froid, Tiède, Chaud, Perdu, Client" rows={2} />
             </div>
             <div className="grid gap-2">
-              <Label>Seuil “chaud” (score)</Label>
+              <Label>Seuil « chaud » (score)</Label>
               <Input type="number" min={1} max={10} defaultValue={7} data-testid="hot-threshold" />
             </div>
             <div className="grid gap-2">
               <Label>Champs obligatoires</Label>
-              <Textarea placeholder="email, téléphone, adresse…" rows={2} />
+              <Textarea placeholder="email, téléphone, adresse..." rows={2} />
             </div>
             <div className="grid gap-2">
               <Label>Modèle de fiche client (champs actifs)</Label>
               <Textarea placeholder="Activer/désactiver certains champs" rows={2} />
             </div>
             <div className="grid gap-2">
-              <Label>Durée par défaut d’un RDV (minutes)</Label>
+              <Label>Durée par défaut d'un RDV (minutes)</Label>
               <Input type="number" min={10} max={240} defaultValue={60} />
             </div>
             <div className="grid gap-2">
@@ -226,7 +258,7 @@ const SettingsPage = () => {
             </div>
             <div className="grid gap-2">
               <Label>Priorisation</Label>
-              <Textarea placeholder="Score opportunité, Proximité géographique" rows={2} />
+              <Textarea placeholder="Score opportunité, proximité géographique" rows={2} />
             </div>
             <div className="grid gap-2">
               <Label>Pause minimum entre RDV (minutes)</Label>
@@ -273,7 +305,7 @@ const SettingsPage = () => {
               <Switch />
             </div>
             <div className="grid gap-2">
-              <Label>Niveau d’enrichissement</Label>
+              <Label>Niveau d'enrichissement</Label>
               <Select defaultValue="standard">
                 <SelectTrigger>
                   <SelectValue />
@@ -363,7 +395,7 @@ const SettingsPage = () => {
             </div>
             <div className="grid gap-2">
               <Label>Attribution des prospects</Label>
-              <Textarea placeholder="Règles d’attribution" rows={2} />
+              <Textarea placeholder="Règles d'attribution" rows={2} />
             </div>
             <div className="grid gap-2">
               <Label>Visibilité</Label>
@@ -389,11 +421,20 @@ const SettingsPage = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card id="notifications">
           <CardHeader>
             <CardTitle>Notifications</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Activer les notifications</Label>
+              <Switch checked={notificationsEnabled} onCheckedChange={setNotificationsEnabled} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {notificationsEnabled
+                ? "Notifications actives : vous recevrez les alertes RDV, relances, conflits agenda et résumés quotidiens."
+                : "Activez vos notifications pour recevoir les alertes (RDV, relances, conflits agenda, résumé quotidien)."}
+            </p>
             <div className="flex items-center justify-between">
               <Label>Rappels RDV</Label>
               <Switch defaultChecked />
@@ -408,7 +449,7 @@ const SettingsPage = () => {
             </div>
             <div className="flex items-center justify-between">
               <Label>Résumé quotidien</Label>
-              <Switch />
+              <Switch checked={dailySummaryEnabled} onCheckedChange={setDailySummaryEnabled} />
             </div>
             <div className="grid gap-2">
               <Label>Canaux</Label>
@@ -423,7 +464,7 @@ const SettingsPage = () => {
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="grid gap-2">
-              <Label>Version de l’app</Label>
+              <Label>Version de l'app</Label>
               <Input placeholder="v1.0.0" />
             </div>
             <div className="grid gap-2">
