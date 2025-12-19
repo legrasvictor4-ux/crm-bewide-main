@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EventType {
+  visit
+  call
+  whatsapp
+  email
+  demo
+  deal
+  note
+}
+
+enum LeadStatus {
+  new
+  engaged
+  cooling
+  demo
+  negotiation
+  won
+  lost
+}
+
+model Account {
+  id                   String    @id @default(uuid())
+  tenant_id            String?
+  name                 String
+  category             String?
+  city                 String?
+  current_status       LeadStatus @default(new)
+  lead_score           Int       @default(0)
+  closing_probability  Int       @default(0)
+  last_interaction_at  DateTime?
+  next_action_at       DateTime?
+  ai_summary_short     String?   @db.Text
+  created_at           DateTime  @default(now())
+  updated_at           DateTime  @updatedAt
+  events               Event[]
+
+  @@index([tenant_id, name])
+  @@index([last_interaction_at])
+  @@index([next_action_at])
+}
+
+model Event {
+  id              String    @id @default(uuid())
+  account_id      String
+  account         Account   @relation(fields: [account_id], references: [id], onDelete: Cascade)
+  event_type      EventType
+  raw_input_text  String    @db.Text
+  structured_data Json
+  created_by      String?
+  created_at      DateTime  @default(now())
+
+  @@index([account_id, created_at])
+}

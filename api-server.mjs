@@ -19,6 +19,9 @@ import { computeLeadScore } from './server/leadScoreService.js';
 import { validateContact } from './src/backend/validation/contactSchema.js';
 import { extractFieldsFromTranscript, findMatchByCompanyOrContact, buildProspectFromTranscript } from './src/backend/voiceUtils.js';
 import { createVoiceRouter } from './src/backend/voiceController.js';
+import { createTimelineRepository } from './src/backend/timeline/repository.js';
+import { createTimelineRouter } from './src/backend/timeline/router.js';
+import { createNotificationRouter } from './src/backend/notifications/router.js';
 import { appointmentRequestSchema, detectConflicts } from './src/backend/scheduling.js';
 import { planRequestSchema, planDay } from './src/backend/planning.js';
 import crypto from 'crypto';
@@ -85,6 +88,8 @@ const memoryDb = {
       .slice(0, limit);
   }
 };
+
+const timelineRepository = createTimelineRepository({ supabase, useMemoryStore });
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage();
@@ -1112,6 +1117,17 @@ app.post('/api/appointments/plan', (req, res) => {
   return res.json(result);
 });
 
+// Timeline and voice ingestion endpoints
+app.use(
+  '/api/timeline',
+  createTimelineRouter({
+    repository: timelineRepository,
+    aiOptions: { apiKey: process.env.OPENAI_API_KEY, model: process.env.OPENAI_MODEL },
+  })
+);
+app.use('/api/voice', createVoiceRouter({ memoryDb, supabase, useMemoryStore }));
+app.use('/api/notifications', createNotificationRouter({ memoryDb, supabase, useMemoryStore }));
+
 // Chat API endpoint (kept for compatibility)
 app.post('/api/chat', (req, res) => {
   const mockResponses = [
@@ -1156,6 +1172,3 @@ app.listen(PORT, () => {
   console.log(`[${new Date().toISOString()}] Health check available at http://localhost:${PORT}/api/health`);
   console.log(`[${new Date().toISOString()}] Database setup check available at http://localhost:${PORT}/api/setup/database`);
 });
-
-// Voice routes
-app.use('/api/voice', createVoiceRouter({ memoryDb, supabase, useMemoryStore }));
