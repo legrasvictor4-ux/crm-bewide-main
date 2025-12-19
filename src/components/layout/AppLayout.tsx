@@ -3,10 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { formatDistanceToNow, subDays } from "date-fns";
 import { fr } from "date-fns/locale";
-import { supabase } from "@/integrations/supabase/client";
 import TopNav from "./TopNav";
 import SidebarNav from "./SidebarNav";
 import RightPanel from "./RightPanel";
+import SafeAreaLayout from "./SafeAreaLayout";
+import NativeShell from "./NativeShell";
+import { useKeyboardInsets } from "@/hooks/useKeyboardInsets";
+import AddToHomeScreenPrompt from "../pwa/AddToHomeScreenPrompt";
 
 interface Breadcrumb {
   label: string;
@@ -23,8 +26,9 @@ interface AppLayoutProps {
 interface NotificationItem {
   id: string;
   title: string;
-  detail: string;
-  at: Date;
+  detail?: string;
+  action?: string;
+  at?: Date | null;
 }
 
 const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutProps) => {
@@ -35,6 +39,7 @@ const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutP
   const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [notificationsError, setNotificationsError] = useState<string | null>(null);
   const navigate = useNavigate();
+  useKeyboardInsets();
 
   const formatRelative = (date: Date) =>
     formatDistanceToNow(date, { addSuffix: true, locale: fr });
@@ -57,49 +62,17 @@ const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutP
     const loadNotifications = async () => {
       setLoadingNotifications(true);
       setNotificationsError(null);
-
-      const since = subDays(new Date(), 14).toISOString();
-
       try {
-        const { data, error } = await supabase
-          .from("clients")
-          .select("id, company, first_name, last_name, status, next_action, date_created, lead_score")
-          .gte("date_created", since)
-          .order("date_created", { ascending: false })
-          .limit(50);
-
-        if (error) throw error;
-
-        const mapped = (data || []).map((client) => {
-          const name =
-            client.company ||
-            `${client.first_name || ""} ${client.last_name || ""}`.trim() ||
-            "Client";
-
-          const statusLabel: Record<string, string> = {
-            new: "Nouveau client",
-            success: "Client confirme",
-            pending: "Client en attente",
-            lost: "Client perdu",
-            to_recontact: "A relancer",
-          };
-
-          const detailParts = [name];
-          if (client.next_action) {
-            detailParts.push(client.next_action);
-          }
-          if (client.lead_score !== null && client.lead_score !== undefined) {
-            detailParts.push(`Score ${client.lead_score}`);
-          }
-
-          return {
-            id: client.id,
-            title: statusLabel[client.status] || "Client",
-            detail: detailParts.join(" - "),
-            at: new Date(client.date_created),
-          };
-        });
-
+        const res = await fetch("/api/notifications/daily");
+        const payload = await res.json();
+        if (!res.ok || !payload.success) throw new Error(payload.error || "Erreur notifications");
+        const mapped = (payload.notifications || []).map((n: any, idx: number) => ({
+          id: `${n.lead_id || "none"}-${n.category}-${idx}`,
+          title: n.title,
+          detail: n.body,
+          action: n.action,
+          at: null,
+        }));
         setNotifications(mapped);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Impossible de charger les notifications";
@@ -115,7 +88,8 @@ const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutP
   }, [showNotificationPanel]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col">
+    <SafeAreaLayout>
+      <div className="min-h-screen bg-background text-foreground flex flex-col">
       <TopNav
         title={title}
         breadcrumbs={breadcrumbs}
@@ -183,15 +157,19 @@ const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutP
                       Aucune notification recente sur les 14 derniers jours.
                     </div>
                   )}
-                  {!loadingNotifications &&
-                    !notificationsError &&
-                    notifications.map((notif) => (
-                      <div key={notif.id} className="rounded-lg border border-border/60 px-3 py-2 bg-card/80">
-                        <p className="font-medium text-foreground">{notif.title}</p>
-                        <p className="text-xs text-muted-foreground">{notif.detail}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1">{formatRelative(notif.at)}</p>
-                      </div>
-                    ))}
+                    {!loadingNotifications &&
+                      !notificationsError &&
+                      notifications.map((notif) => (
+                        <div key={notif.id} className="rounded-lg border border-border/60 px-3 py-2 bg-card/80 space-y-1">
+                          <p className="font-medium text-foreground">{notif.title}</p>
+                          {notif.detail && <p className="text-xs text-muted-foreground">{notif.detail}</p>}
+                          {notif.action && (
+                            <p className="text-[11px] text-primary font-medium">
+                              Action : {notif.action}
+                            </p>
+                          )}
+                        </div>
+                      ))}
                 </div>
               </div>
             )}
@@ -199,7 +177,10 @@ const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutP
         </main>
         {rightPanel && <RightPanel>{rightPanel}</RightPanel>}
       </div>
-    </div>
+      </div>
+      <NativeShell />
+      <AddToHomeScreenPrompt />
+    </SafeAreaLayout>
   );
 };
 

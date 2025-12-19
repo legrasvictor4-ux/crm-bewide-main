@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, BarChart, Upload, Settings, LogOut, Shield } from "lucide-react";
+import { LayoutDashboard, Users, BarChart, Upload, Settings, LogOut, Shield, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SidebarNavProps {
@@ -11,6 +11,7 @@ interface SidebarNavProps {
 const links = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/prospection", label: "Prospection", icon: Users },
+  { to: "/timeline", label: "Timeline", icon: Clock },
   { to: "/analytics", label: "Analytics", icon: BarChart },
   { to: "/imports", label: "Imports", icon: Upload },
   { to: "/settings", label: "Settings", icon: Settings },

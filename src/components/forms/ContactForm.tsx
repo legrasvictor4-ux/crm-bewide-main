@@ -169,7 +169,12 @@ const ContactForm = ({
             <Label htmlFor="status" className="block mb-1">
               Statut
             </Label>
-            <select id="status" {...form.register("status")} className="mt-1 rounded-md border px-3 py-2" data-testid="status">
+            <select
+              id="status"
+              {...form.register("status")}
+              className="mt-1 block w-full rounded-xl border border-border bg-card px-3 py-2.5 text-sm shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/30 hover:border-primary/60"
+              data-testid="status"
+            >
               <option value="client">Client</option>
               <option value="prospect">Prospect</option>
             </select>

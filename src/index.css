@@ -6,6 +6,12 @@
 
 @layer base {
   :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --kb-offset: 0px;
+
     --background: 0 0% 100%;
     --foreground: 220 15% 10%;
 
@@ -202,6 +208,71 @@
 
   .animate-pulse-soft {
     animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+    -webkit-tap-highlight-color: transparent;
+    font-size: 16px;
+    background: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  input, textarea, select, button {
+    font-size: 16px;
+  }
+
+  .safe-area {
+    padding-top: var(--safe-top);
+    padding-bottom: max(var(--safe-bottom), var(--kb-offset));
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  .native-tabs {
+    position: sticky;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 40;
+    backdrop-filter: blur(16px);
+    background: color-mix(in srgb, hsl(var(--background)) 85%, transparent);
+    border-top: 1px solid hsl(var(--border));
+  }
+
+  .native-tabs-inner {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 2px;
+    padding: 10px max(12px, var(--safe-left)) max(12px, var(--safe-bottom));
+  }
+
+  .native-tab {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 6px;
+    border-radius: 12px;
+    color: hsl(var(--muted-foreground));
+    text-decoration: none;
+    transition: all 0.15s ease;
+  }
+
+  .native-tab-active {
+    color: hsl(var(--primary));
+    background: hsl(var(--primary) / 0.08);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .pull-to-refresh {
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: hsl(var(--muted-foreground));
+    font-size: 12px;
   }
 }
 
