@@ -45,7 +45,7 @@ const TopNav = ({
         `}
       </style>
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-lg">
-        <div className="flex items-center gap-3 px-4 py-2 lg:px-6">
+        <div className="flex items-center gap-3 px-4 py-2 lg:px-6 flex-wrap">
           <Button
             variant="ghost"
             size="icon"
@@ -64,7 +64,7 @@ const TopNav = ({
           >
             <Menu className="h-5 w-5" />
           </Button>
-          <div className="flex flex-1 items-center gap-4">
+          <div className="flex flex-1 items-center gap-4 flex-wrap min-w-0">
             <div className="hidden sm:flex items-center gap-3 rounded-xl border border-border/60 bg-card/90 px-4 py-2 shadow-sm">
               <span
                 className="text-lg font-semibold leading-none bg-clip-text text-transparent"
@@ -82,7 +82,7 @@ const TopNav = ({
                 </div>
               ))}
             </div>
-            <div className="relative w-full max-w-md">
+            <div className="relative w-full min-w-0 md:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-10"
@@ -92,7 +92,7 @@ const TopNav = ({
               />
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               asChild
               size="sm"

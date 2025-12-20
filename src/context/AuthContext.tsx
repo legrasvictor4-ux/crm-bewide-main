@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 interface AuthContextValue {
   token: string | null;
   email: string | null;
+  ready: boolean;
   login: (payload: { email?: string; password?: string; provider?: "google" | "apple"; otpToken?: string }) => Promise<void>;
   sendOtp: (email: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -13,8 +14,15 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [token, setToken] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("auth_token");
+  });
+  const [email, setEmail] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("auth_email");
+  });
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     if (token) localStorage.setItem("auth_token", token);
@@ -32,12 +40,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const session = data.session;
       setToken(session?.access_token ?? null);
       setEmail(session?.user?.email ?? null);
+      setReady(true);
     };
-    syncSession();
+    void syncSession();
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
       setToken(session?.access_token ?? null);
       setEmail(session?.user?.email ?? null);
+      setReady(true);
     });
 
     return () => {
@@ -79,7 +89,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ token, email, login, logout, sendOtp }}>
+    <AuthContext.Provider value={{ token, email, ready, login, logout, sendOtp }}>
       {children}
     </AuthContext.Provider>
   );

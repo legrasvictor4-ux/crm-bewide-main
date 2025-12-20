@@ -89,7 +89,7 @@ const Index = () => {
         <div className="bg-card backdrop-blur border border-border rounded-b-3xl shadow-md">
           <div className="flex flex-col gap-3 p-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3 flex-1">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
                   <Sparkles className="h-4 w-4" />
                 </div>
@@ -98,15 +98,15 @@ const Index = () => {
                   <span className="text-xs text-muted-foreground leading-tight">Vue synthèse du pipeline et des actions rapides</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button size="sm" variant="secondary" onClick={() => setShowExcelUpload(true)} className="gap-2">
+              <div className="flex items-stretch gap-2 w-full md:w-auto flex-wrap justify-stretch md:justify-end">
+                <Button size="sm" variant="secondary" onClick={() => setShowExcelUpload(true)} className="gap-2 w-full md:w-auto">
                   <FileSpreadsheet className="h-4 w-4" />
                   Import
                 </Button>
-                <Button size="sm" onClick={() => setShowAddDialog(true)} className="gap-2">
+                <Button size="sm" onClick={() => setShowAddDialog(true)} className="gap-2 w-full md:w-auto">
                   <Sparkles className="h-4 w-4" /> Ajouter un client
                 </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowRecorder(true)} className="gap-2">
+                <Button size="sm" variant="outline" onClick={() => setShowRecorder(true)} className="gap-2 w-full md:w-auto">
                   <Mic className="h-4 w-4" /> Dictée
                 </Button>
               </div>
@@ -129,7 +129,7 @@ const Index = () => {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-8 space-y-6">
+      <div className="page-shell py-8 space-y-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
           {kpiData.map((kpi) => (
             <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} diff={kpi.diff} tone={kpi.tone} icon={kpi.icon} />
