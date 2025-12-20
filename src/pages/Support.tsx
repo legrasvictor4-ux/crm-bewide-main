@@ -1,3 +1,4 @@
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,6 +6,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Mail, MessageCircle, LifeBuoy } from "lucide-react";
 
 const Support = () => {
+  const navigate = useNavigate();
+
+  const handleChatClick = () => {
+    // Ouvre le chat dans un nouvel onglet; à remplacer par le widget officiel si disponible
+    window.open("https://app.bewide.ai/support/chat", "_blank", "noreferrer");
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#eef3ff] to-[#e4eaff] dark:from-[#070b1c] dark:via-[#0a1020] dark:to-[#0c1226] p-6 flex items-center justify-center">
       <div className="w-full max-w-3xl">
@@ -15,6 +23,11 @@ const Support = () => {
             </div>
             <CardTitle className="text-2xl font-semibold">Contacter l’assistance Bewide</CardTitle>
             <p className="text-sm text-muted-foreground">Décrivez votre problème ou votre demande, nous revenons vers vous rapidement.</p>
+            <div className="flex justify-center">
+              <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-sm">
+                Revenir en arrière
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-3 md:grid-cols-2">
@@ -39,7 +52,7 @@ const Support = () => {
               <Button className="w-full gap-2">
                 <Mail className="h-4 w-4" /> Envoyer par email
               </Button>
-              <Button variant="outline" className="w-full gap-2">
+              <Button variant="outline" className="w-full gap-2" onClick={handleChatClick}>
                 <MessageCircle className="h-4 w-4" /> Ouvrir un chat
               </Button>
             </div>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -26,6 +27,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
 import { queryClient } from "@/lib/queryClient";
 import MotionRoutes from "@/components/layout/MotionRoutes";
+import SplashScreen from "@/components/layout/SplashScreen";
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
   const { token } = useAuth();
@@ -47,17 +49,26 @@ const LayoutRoute = ({
   </AppLayout>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <AuthProvider>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          <BrowserRouter>
-            <ErrorBoundary>
-              <MotionRoutes>
-                <Route path="/login" element={<Login />} />
+const App = () => {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => setShowSplash(false), 1200);
+    return () => window.clearTimeout(timeout);
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+            {showSplash && <SplashScreen />}
+            <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+              <ErrorBoundary>
+                <MotionRoutes>
+                  <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<SignUp />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/support" element={<Support />} />
@@ -219,14 +230,15 @@ const App = () => (
                     </RequireAuth>
                   }
                 />
-                <Route path="*" element={<NotFound />} />
-              </MotionRoutes>
-            </ErrorBoundary>
-          </BrowserRouter>
-        </ThemeProvider>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+                  <Route path="*" element={<NotFound />} />
+                </MotionRoutes>
+              </ErrorBoundary>
+            </BrowserRouter>
+          </ThemeProvider>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
