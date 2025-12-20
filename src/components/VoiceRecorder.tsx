@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { X, Mic, Square, Send, Sparkles, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,8 +40,20 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
 
   const startRecording = async () => {
     try {
+      if (audioBlob) setAudioBlob(null);
+      if (!navigator.mediaDevices?.getUserMedia) {
+        toast({ title: "Micro non disponible", description: "Micro bloque. Activez les permissions ou utilisez un autre navigateur.", variant: "destructive" });
+        return;
+      }
+
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
+      const mimeType =
+        typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported("audio/webm")
+          ? "audio/webm"
+          : MediaRecorder.isTypeSupported("audio/mp4")
+          ? "audio/mp4"
+          : "";
+      const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -52,7 +64,7 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: "audio/webm" });
+        const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
         setAudioBlob(blob);
         stream.getTracks().forEach((track) => track.stop());
       };
@@ -66,7 +78,7 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
       }, 1000);
     } catch (error) {
       console.error("Error accessing microphone:", error);
-      alert("Impossible d'accéder au microphone. Veuillez autoriser l'accès.");
+      toast({ title: "Micro non accessible", description: "Autorisez le micro (HTTPS obligatoire) puis reessayez.", variant: "destructive", });
     }
   };
 
@@ -101,14 +113,14 @@ const VoiceRecorder = ({ onClose }: VoiceRecorderProps) => {
       if (error) throw error;
 
       toast({
-        title: "Prospection enregistrée",
-        description: "Le client a été ajouté à la liste avec la transcription en notes.",
+        title: "Prospection enregistrÃ©e",
+        description: "Le client a Ã©tÃ© ajoutÃ© Ã  la liste avec la transcription en notes.",
       });
     } catch (error) {
       console.error("Save error:", error);
       toast({
         title: "Enregistrement impossible",
-        description: "Vérifie la connexion à Supabase (URL/keys) ou réessaie.",
+        description: "VÃ©rifie la connexion Ã  Supabase (URL/keys) ou rÃ©essaie.",
         variant: "destructive",
       });
     } finally {
@@ -148,16 +160,16 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
               restaurantName: "Prospection vocale",
               location: null,
               interestLevel: "unknown",
-              nextAction: { type: "follow_up", notes: "Ajouté via prospection vocale" },
+              nextAction: { type: "follow_up", notes: "AjoutÃ© via prospection vocale" },
             };
 
           setAnalysisResult(parsedResult);
           await saveProspection(parsedResult, mockTranscription);
           toast({
-            title: "Prospection enregistrée",
+            title: "Prospection enregistrÃ©e",
             description: extracted
-              ? "Analyse IA réussie et client créé."
-              : "Fonction d'analyse absente : sauvegarde effectuée avec les champs par défaut.",
+              ? "Analyse IA rÃ©ussie et client crÃ©Ã©."
+              : "Fonction d'analyse absente : sauvegarde effectuÃ©e avec les champs par dÃ©faut.",
           });
         };
       } catch (error) {
@@ -184,7 +196,7 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
       <div className="bg-card rounded-2xl shadow-xl max-w-md w-full p-8 border border-border animate-in zoom-in duration-200">
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-bold text-foreground">
-            {isRecording ? "Enregistrement..." : audioBlob ? "Enregistrement terminé" : "Nouvelle prospection"}
+            {isRecording ? "Enregistrement..." : audioBlob ? "Enregistrement terminÃ©" : "Nouvelle prospection"}
           </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-6 w-6" />
@@ -222,7 +234,7 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
                 <p className="text-sm text-muted-foreground">Appuyez sur stop pour terminer</p>
               </div>
             ) : audioBlob ? (
-              <p className="text-sm text-muted-foreground">Enregistrement de {formatTime(recordingTime)} prêt</p>
+              <p className="text-sm text-muted-foreground">Enregistrement de {formatTime(recordingTime)} prÃªt</p>
             ) : (
               <p className="text-sm text-muted-foreground">Appuyez sur le micro pour commencer</p>
             )}
@@ -252,13 +264,25 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
               )}
             </button>
           )}
+
+          {audioBlob && !analysisResult && (
+            <button
+              onClick={() => {
+                setAudioBlob(null);
+                setRecordingTime(0);
+              }}
+              className="text-sm text-muted-foreground underline hover:text-foreground"
+            >
+              Recommencer l'enregistrement
+            </button>
+          )}
         </div>
 
         {analysisResult && (
           <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-300">
             <div className="flex items-center gap-2 text-accent">
               <Sparkles className="h-5 w-5" />
-              <h3 className="font-bold text-lg text-foreground">Analyse IA complète</h3>
+              <h3 className="font-bold text-lg text-foreground">Analyse IA complÃ¨te</h3>
             </div>
 
             <div className="grid gap-3">
@@ -277,7 +301,7 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
               )}
 
               <div className="p-3 bg-secondary rounded-lg">
-                <p className="text-xs text-muted-foreground">Niveau d'intérêt</p>
+                <p className="text-xs text-muted-foreground">Niveau d'intÃ©rÃªt</p>
                 <p className="font-semibold text-foreground capitalize">{analysisResult.interestLevel?.replace(/_/g, " ")}</p>
               </div>
 
@@ -316,7 +340,7 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
         {!isRecording && !audioBlob && (
           <div className="mt-8 p-4 bg-secondary rounded-lg">
             <p className="text-sm text-muted-foreground">
-              💡 Mentionnez : nom du restaurant, arrondissement, statut de la prospection, prochaines actions...
+              ðŸ’¡ Mentionnez : nom du restaurant, arrondissement, statut de la prospection, prochaines actions...
             </p>
           </div>
         )}
@@ -326,3 +350,5 @@ RDV confirme pour jeudi prochain a 14h pour discuter d'une offre complete.`;
 };
 
 export default VoiceRecorder;
+
+

@@ -85,18 +85,18 @@ const TopNav = ({
             <div className="relative w-full min-w-0 md:max-w-md">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                className="pl-10"
+                className="pl-10 w-full"
                 placeholder="Recherche globale..."
                 aria-label="Recherche globale"
                 role="searchbox"
               />
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap justify-end w-full sm:w-auto">
             <Button
               asChild
               size="sm"
-              className="group relative inline-flex gap-2 rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white shadow-lg border border-white/30 transition-all duration-200 ease-out overflow-hidden hover:-translate-y-[2px] hover:shadow-[0_14px_34px_-18px_rgba(59,130,246,0.9)] active:translate-y-0.5 active:shadow-[0_10px_24px_-18px_rgba(59,130,246,0.8)] dark:from-neutral-900 dark:via-black dark:to-slate-900 dark:border-white/20"
+              className="group relative inline-flex gap-2 rounded-full bg-gradient-to-r from-sky-500 via-blue-600 to-indigo-600 text-white shadow-lg border border-white/30 transition-all duration-200 ease-out overflow-hidden hover:-translate-y-[2px] hover:shadow-[0_14px_34px_-18px_rgba(59,130,246,0.9)] active:translate-y-0.5 active:shadow-[0_10px_24px_-18px_rgba(59,130,246,0.8)] dark:from-neutral-900 dark:via-black dark:to-slate-900 dark:border-white/20 w-full sm:w-auto justify-center px-4"
               aria-label="Accéder à l'app Bewide"
             >
               <a href="https://app.bewide.ai/" target="_blank" rel="noreferrer" className="flex items-center gap-2">

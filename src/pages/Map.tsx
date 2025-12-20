@@ -24,7 +24,7 @@ const Map = () => {
         setIsLoading(true);
         const { data, error: fetchError } = await supabase
           .from("clients")
-          .select("id, first_name, last_name, company, address, city, postal_code, arrondissement, metadata")
+        .select("id, first_name, last_name, address, city, postal_code, arrondissement, metadata")
           .order("date_created", { ascending: false });
 
         if (fetchError) throw fetchError;
