@@ -44,17 +44,17 @@ const ActionBar = ({
             role="searchbox"
           />
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <Button size="sm" onClick={onAdd} className="gap-2 bg-accent text-white hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent" aria-label="Ajouter un client">
+        <div className="flex items-center gap-2 flex-wrap justify-stretch md:justify-end w-full">
+          <Button size="sm" onClick={onAdd} className="gap-2 w-full sm:w-auto bg-accent text-white hover:bg-accent/90 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-accent" aria-label="Ajouter un client">
             <Plus className="h-4 w-4" /> Ajouter
           </Button>
-          <Button size="sm" variant="secondary" onClick={onImport} className="gap-2 bg-muted text-foreground hover:bg-muted/80 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border" aria-label="Importer Excel">
+          <Button size="sm" variant="secondary" onClick={onImport} className="gap-2 w-full sm:w-auto bg-muted text-foreground hover:bg-muted/80 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border" aria-label="Importer Excel">
             <Upload className="h-4 w-4" /> Import Excel
           </Button>
-          <Button size="sm" variant="outline" onClick={onSortLeadScore} className="gap-2 border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border" aria-label="Trier par lead score">
+          <Button size="sm" variant="outline" onClick={onSortLeadScore} className="gap-2 w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border" aria-label="Trier par lead score">
             <SortDesc className="h-4 w-4" /> {sortByScore ? "Score décroissant" : "Score récent"}
           </Button>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <Input
               aria-label="Filtrer par score minimum"
               type="number"
@@ -62,26 +62,26 @@ const ActionBar = ({
               max={100}
               value={minScore}
               onChange={(e) => onFilterLeadScore(Number(e.target.value) || 0)}
-              className="w-24"
+              className="w-full sm:w-24"
               data-testid="lead-min"
             />
-            <Button size="sm" variant="outline" onClick={() => onFilterLeadScore(minScore || 0)} className="gap-2 border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border" aria-label="Filtrer lead score">
+            <Button size="sm" variant="outline" onClick={() => onFilterLeadScore(minScore || 0)} className="gap-2 w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border" aria-label="Filtrer lead score">
               <Filter className="h-4 w-4" /> Min {minScore || 0}
             </Button>
-            <Button size="sm" variant="outline" onClick={onClearLeadFilter} aria-label="Réinitialiser le filtre score" className="border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
+            <Button size="sm" variant="outline" onClick={onClearLeadFilter} aria-label="Réinitialiser le filtre score" className="w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
               Réinitialiser
             </Button>
           </div>
-          <Button size="sm" variant="outline" onClick={onToggleMap} aria-label="Basculer la carte" className="gap-1 border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
+          <Button size="sm" variant="outline" onClick={onToggleMap} aria-label="Basculer la carte" className="gap-1 w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
             <MapIcon className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"} className="border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
+          <Button size="sm" variant="outline" onClick={() => setViewMode("list")} aria-pressed={viewMode === "list"} className="w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
             <List className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setViewMode("grid")} aria-pressed={viewMode === "grid"} className="border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
+          <Button size="sm" variant="outline" onClick={() => setViewMode("grid")} aria-pressed={viewMode === "grid"} className="w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
             <Grid className="h-4 w-4" />
           </Button>
-          <Button size="sm" variant="outline" aria-label="Exporter" className="border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
+          <Button size="sm" variant="outline" aria-label="Exporter" className="w-full sm:w-auto border-border text-foreground focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border">
             <Download className="h-4 w-4" />
           </Button>
         </div>

@@ -30,7 +30,8 @@ import MotionRoutes from "@/components/layout/MotionRoutes";
 import SplashScreen from "@/components/layout/SplashScreen";
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
-  const { token } = useAuth();
+  const { token, ready } = useAuth();
+  if (!ready) return null;
   if (!token) return <Navigate to="/login" replace />;
   return children;
 };
