@@ -57,8 +57,33 @@ export async function fetchClients(params: FetchClientsParams = {}): Promise<Cli
 
 export async function createClient(payload: CreateClientInput): Promise<Client> {
   return withRetry(async () => {
-    const { data, error } = await supabase.from("clients").insert(payload).select().single();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      throw new ApiError("Impossible de vérifier la session Supabase", 401, "AUTH_CHECK_FAILED", sessionError);
+    }
+    if (!sessionData.session) {
+      throw new ApiError("Connexion requise pour créer un client (RLS)", 401, "AUTH_REQUIRED");
+    }
+
+    // last_name est requis par le schéma ; fallback sur company ou valeur par défaut
+    const normalized: CreateClientInput = {
+      ...payload,
+      last_name: payload.last_name || payload.company || "Client",
+      status: payload.status || "new",
+      date_created: payload.date_created || new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase.from("clients").insert(normalized).select().single();
     if (error) {
+      const lower = (error.message || "").toLowerCase();
+      if (lower.includes("row level security") || lower.includes("rls")) {
+        throw new ApiError(
+          "Écriture bloquée par RLS : vérifie la connexion et les policies Supabase.",
+          403,
+          "CLIENT_CREATE_RLS",
+          error
+        );
+      }
       throw new ApiError(error.message, 400, "CLIENT_CREATE_FAILED", error);
     }
     if (!data) {

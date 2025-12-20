@@ -5,7 +5,10 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: vi.fn() } as unknown as SupabaseClient,
+  supabase: {
+    from: vi.fn(),
+    auth: { getSession: vi.fn(() => Promise.resolve({ data: { session: {} }, error: null })) },
+  } as unknown as SupabaseClient,
 }));
 
 const sampleClient: Client = {
@@ -51,6 +54,7 @@ describe("clients service", () => {
     }));
     builder.then = (resolve: any) => Promise.resolve(response).then(resolve);
     fromSpy = vi.spyOn(supabase, "from").mockImplementation(() => builder as any);
+    vi.spyOn(supabase.auth, "getSession").mockResolvedValue({ data: { session: {} }, error: null } as any);
   });
 
   afterEach(() => {

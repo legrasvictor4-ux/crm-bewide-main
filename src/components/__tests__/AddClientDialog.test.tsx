@@ -12,6 +12,11 @@ vi.mock("@/hooks/use-clients", () => ({
       options?.onSuccess?.();
       return Promise.resolve();
     },
+    mutateAsync: (payload: unknown) => {
+      mutateSpy(payload);
+      options?.onSuccess?.();
+      return Promise.resolve();
+    },
     isPending: false,
   }),
 }));
@@ -20,6 +25,14 @@ vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+  },
+}));
+
+vi.mock("@/integrations/supabase/client", () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn(() => Promise.resolve({ data: { session: { user: { id: "test" } } }, error: null })),
+    },
   },
 }));
 

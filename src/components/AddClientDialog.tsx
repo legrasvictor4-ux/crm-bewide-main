@@ -49,6 +49,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
     onerror: ((event: { error?: string }) => void) | null;
     onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
     start: () => void;
+    stop: () => void;
   };
 
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
@@ -61,7 +62,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
 
   const mutation = useCreateClient({
     onSuccess: () => {
-      toast.success("Client cree avec succes");
+      toast.success("Client créé avec succès");
       setFormData(initialData);
       setErrors({});
       setDictationMessage(null);
@@ -70,7 +71,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
         onSuccess();
       }
     },
-    onError: (error: Error & { validationErrors?: string[] }) => {
+    onError: (error: Error & { validationErrors?: string[]; code?: string }) => {
       if (error.validationErrors && error.validationErrors.length > 0) {
         const mapped: Partial<Record<keyof ClientFormData, string>> = {};
         error.validationErrors.forEach((msg) => {
@@ -80,16 +81,22 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
         });
         setErrors(mapped);
       }
-      toast.error(error.message || "Erreur lors de la creation du client");
+      const message =
+        error.code === "CLIENT_CREATE_RLS"
+          ? "Insertion refusée par RLS : connecte-toi avec un compte autorisé ou ajuste les policies Supabase."
+          : error.message || "Erreur lors de la création du client";
+      toast.error(message);
     },
   });
 
   const toPayload = (data: ClientFormData): CreateClientInput => ({
-    company: data.name,
+    company: data.name || "Client",
+    last_name: data.name || "Client",
     phone: data.phone_number,
     email: data.email,
     notes: data.description,
     status: "new",
+    metadata: { source: "manual_form" },
   });
 
   const validateForm = (data: ClientFormData = formData): boolean => {
@@ -194,7 +201,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
         const ok = validateForm(nextData);
         if (ok && !mutation.isPending) {
           mutation.mutate(toPayload(nextData));
-        } else {
+        } else if (!ok) {
           toast.error("Champs requis manquants apres dictee.");
         }
         return nextData;
