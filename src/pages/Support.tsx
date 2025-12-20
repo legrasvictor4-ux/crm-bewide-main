@@ -14,8 +14,8 @@ const Support = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#eef3ff] to-[#e4eaff] dark:from-[#070b1c] dark:via-[#0a1020] dark:to-[#0c1226] p-6 flex items-center justify-center">
-      <div className="w-full max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#eef3ff] to-[#e4eaff] dark:from-[#070b1c] dark:via-[#0a1020] dark:to-[#0c1226] flex items-center justify-center">
+      <div className="page-shell w-full max-w-3xl py-6">
         <Card className="border-none bg-white/60 dark:bg-white/5 backdrop-blur-xl shadow-[0_20px_80px_-30px_rgba(30,41,59,0.65)] rounded-[24px]">
           <CardHeader className="text-center space-y-2">
             <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">

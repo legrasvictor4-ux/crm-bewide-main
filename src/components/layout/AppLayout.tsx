@@ -127,15 +127,15 @@ const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutP
           onCloseMobile={() => setIsMobileMenuOpen(false)}
         />
         <main
-          className="flex-1 overflow-y-auto"
+          className="flex-1 overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
           role="main"
           aria-label={title || "Contenu principal"}
           tabIndex={0}
         >
-          <div className="mx-auto w-full max-w-7xl px-4 py-6 lg:px-8">
+          <div className="page-shell py-6 space-y-6">
             {children}
             {showNotificationPanel && (
-              <div className="fixed right-6 top-20 z-40 w-80 max-h-[70vh] overflow-y-auto rounded-2xl border border-border/70 bg-card/95 shadow-lg backdrop-blur-md">
+              <div className="fixed right-4 top-20 z-40 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/70 bg-card/95 shadow-lg backdrop-blur-md">
                 <div className="px-4 py-3 border-b border-border/70 flex items-center justify-between">
                   <span className="text-sm font-semibold">Notifications récentes</span>
                   <button
