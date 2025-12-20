@@ -300,11 +300,11 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
             className="p-6 hover:bg-secondary/50 transition-colors cursor-pointer"
             onClick={() => setSelectedProspection(prospection)}
           >
-              <div className="flex items-start justify-between gap-4 mb-3">
+              <div className="flex items-start justify-between gap-4 gap-y-2 mb-3 flex-wrap">
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {getStatusIcon(prospection.status)}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-lg mb-1 flex items-center gap-2">
+                  <h3 className="font-semibold text-foreground text-lg mb-1 flex items-center gap-2 break-words whitespace-normal">
                     {prospection.name}
                     {prospection.lead_score !== undefined && prospection.lead_score !== null && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">

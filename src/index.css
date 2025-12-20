@@ -35,14 +35,6 @@ select {
   font: inherit;
 }
 
-/* Avoid overflow on long tokens (emails/URLs) */
-body,
-input,
-textarea,
-button {
-  overflow-wrap: anywhere;
-}
-
 @layer base {
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
