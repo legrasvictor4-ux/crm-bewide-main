@@ -4,6 +4,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Global reset and predictable box model */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+img,
+picture,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+input,
+button,
+textarea,
+select {
+  font: inherit;
+}
+
+/* Avoid overflow on long tokens (emails/URLs) */
+body,
+input,
+textarea,
+button {
+  overflow-wrap: anywhere;
+}
+
 @layer base {
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
@@ -245,6 +284,39 @@
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 2px;
     padding: 10px max(12px, var(--safe-left)) max(12px, var(--safe-bottom));
+  }
+
+  /* Layout helpers */
+  .page-shell {
+    width: min(100%, 1180px);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: clamp(16px, 4vw, 28px);
+    padding-right: clamp(16px, 4vw, 28px);
+  }
+
+  .text-wrap {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  @media (max-width: 640px) {
+    html {
+      font-size: 15px;
+    }
+
+    body {
+      line-height: 1.6;
+    }
+
+    .card-elevated,
+    .card-interactive {
+      border-radius: 18px;
+    }
   }
 
   .native-tab {
