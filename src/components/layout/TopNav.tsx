@@ -65,6 +65,15 @@ const TopNav = ({
             <Menu className="h-5 w-5" />
           </Button>
           <div className="flex flex-1 items-center gap-4">
+            <div className="hidden sm:flex items-center gap-3 rounded-xl border border-border/60 bg-card/90 px-4 py-2 shadow-sm">
+              <span
+                className="text-lg font-semibold leading-none bg-clip-text text-transparent"
+                style={{ backgroundImage: "linear-gradient(90deg, #8a8a8a 0%, #1b1b1b 100%)" }}
+              >
+                BeWide CRM
+              </span>
+              <span className="text-xs text-muted-foreground">Prospection intelligente</span>
+            </div>
             <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground" aria-label="Fil d'ariane">
               {breadcrumbs.map((crumb, idx) => (
                 <div key={crumb.label} className="flex items-center gap-2">
