@@ -2,7 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
+    />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#0f172a" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="BeWide CRM" />
+    <meta name="format-detection" content="telephone=no,email=no,address=no" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512.png" />
     <title>BeWide AI - CRM Prospection Intelligente</title>
     <meta name="description" content="Assistant Community Manager nouvelle génération pour la gestion intelligente de vos prospections et rendez-vous commerciaux" />
     <meta name="author" content="BeWide AI" />
@@ -21,6 +33,25 @@
       async
       defer
     ></script>
+    <script>
+      (() => {
+        const isStandalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+        if (isStandalone) document.documentElement.classList.add("pwa-standalone");
+        window.addEventListener(
+          "click",
+          (e) => {
+            const a = e.target.closest("a[href]");
+            if (!a) return;
+            const url = new URL(a.href, location.href);
+            if (url.origin !== location.origin) {
+              e.preventDefault();
+              window.open(a.href, "_blank", "noopener");
+            }
+          },
+          { capture: true }
+        );
+      })();
+    </script>
   </head>
 
   <body>
