@@ -58,6 +58,21 @@ const App = () => {
     return () => window.clearTimeout(timeout);
   }, []);
 
+  useEffect(() => {
+    const onFocus = (e: FocusEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target) return;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        window.setTimeout(() => {
+          target.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 50);
+      }
+    };
+    window.addEventListener("focusin", onFocus, true);
+    return () => window.removeEventListener("focusin", onFocus, true);
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
