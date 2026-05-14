@@ -1,75 +1,153 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  Radar,
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
+  RadarChart, PolarGrid, PolarAngleAxis, Radar,
 } from "recharts";
-import { ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import type { Tables } from "@/integrations/supabase/types";
 
-const kpis = [
-  { title: "Sessions CRM Bewide", value: "2 430", change: "+2.1%", up: true },
-  { title: "Leads qualifiés", value: "1 186", change: "+5.4%", up: true },
-  { title: "Temps moyen fiche (min)", value: "6.4", change: "-2.3%", up: false },
-  { title: "Messages WA envoyés", value: "328", change: "+9.8%", up: true },
-];
+type Client = Tables<"clients">;
 
-const lineData = [
-  { label: "15", value: 240 },
-  { label: "16", value: 260 },
-  { label: "17", value: 80 },
-  { label: "18", value: 120 },
-  { label: "19", value: 210 },
-  { label: "20", value: 260 },
-  { label: "21", value: 240 },
-  { label: "22", value: 200 },
-  { label: "23", value: 220 },
-  { label: "24", value: 260 },
-  { label: "25", value: 290 },
-  { label: "26", value: 320 },
-  { label: "27", value: 280 },
-  { label: "28", value: 260 },
-];
+async function fetchAnalyticsData() {
+  const { data, error } = await supabase
+    .from("clients")
+    .select("id, status, lead_score, date_created, city")
+    .order("date_created", { ascending: true });
+  if (error) throw error;
+  return data as Client[];
+}
 
-const radarData = [
-  { channel: "Web Bewide", value: 72 },
-  { channel: "WhatsApp", value: 88 },
-  { channel: "Email", value: 63 },
-  { channel: "Appels", value: 54 },
-];
+function buildLineData(clients: Client[]) {
+  const now = new Date();
+  const days: { label: string; value: number }[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    const label = `${d.getDate()}/${d.getMonth() + 1}`;
+    const value = clients.filter(c => c.date_created?.slice(0, 10) === key).length;
+    days.push({ label, value });
+  }
+  return days;
+}
 
-const lowerCards = [
-  { title: "Top plateforme", subtitle: "Dashboard Bewide", value: "1 883 sessions" },
-  { title: "Top source", subtitle: "Campagne Inbound", value: "420 sessions" },
-  { title: "Top canal", subtitle: "WhatsApp", value: "2 010 sessions" },
-  { title: "Nouveaux leads", subtitle: "Prospects ajoutés", value: "326" },
-];
+function buildRadarData(clients: Client[]) {
+  const statuses: Record<string, string> = {
+    new:          "Nouveaux",
+    pending:      "En cours",
+    success:      "Signés",
+    lost:         "Perdus",
+    to_recontact: "À recontacter",
+  };
+  return Object.entries(statuses).map(([key, label]) => ({
+    channel: label,
+    value: clients.filter(c => c.status === key).length,
+  }));
+}
 
-const statsCards = [
-  { label: "Prospects en ligne", value: 312, max: 512 },
-  { label: "Nouveaux contacts", value: 136, max: 381 },
-  { label: "CA moyen (€/jour)", value: 3076.25, delta: "+2.1%" },
-];
+const STATUS_LABELS: Record<string, string> = {
+  new: "Nouveau", pending: "En cours", success: "Signé",
+  lost: "Perdu", to_recontact: "À recontacter",
+};
 
 const Analytics = () => {
+  const { data: clients = [], isLoading } = useQuery({
+    queryKey: ["analytics-clients"],
+    queryFn: fetchAnalyticsData,
+    staleTime: 60_000,
+  });
+
+  // ── KPIs ─────────────────────────────────────────────────────────────────
+  const total      = clients.length;
+  const qualified  = clients.filter(c => (c.lead_score ?? 0) >= 60 || c.status === "success").length;
+  const avgScore   = total > 0
+    ? Math.round(clients.reduce((s, c) => s + (c.lead_score ?? 0), 0) / total)
+    : 0;
+
+  const now = new Date();
+  const thisMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1).toISOString();
+  const endLastMonth = new Date(now.getFullYear(), now.getMonth(), 0).toISOString();
+
+  const newThisMonth = clients.filter(c => c.date_created >= thisMonth).length;
+  const newLastMonth = clients.filter(c => c.date_created >= lastMonth && c.date_created <= endLastMonth).length;
+  const newDelta     = newLastMonth > 0 ? ((newThisMonth - newLastMonth) / newLastMonth * 100).toFixed(1) : null;
+
+  const successCount = clients.filter(c => c.status === "success").length;
+  const convRate     = total > 0 ? ((successCount / total) * 100).toFixed(1) : "0";
+
+  const kpis = [
+    {
+      title: "Total contacts",
+      value: total.toLocaleString("fr-FR"),
+      change: newDelta ? `${parseFloat(newDelta) >= 0 ? "+" : ""}${newDelta}%` : "—",
+      up: newDelta ? parseFloat(newDelta) >= 0 : true,
+      sub: "vs mois dernier",
+    },
+    {
+      title: "Leads qualifiés (score ≥ 60)",
+      value: qualified.toLocaleString("fr-FR"),
+      change: total > 0 ? `${((qualified / total) * 100).toFixed(0)}%` : "—",
+      up: true,
+      sub: "du total",
+    },
+    {
+      title: "Score moyen",
+      value: `${avgScore} / 100`,
+      change: avgScore >= 50 ? "Bon" : avgScore >= 30 ? "Moyen" : "Faible",
+      up: avgScore >= 50,
+      sub: "lead score",
+    },
+    {
+      title: "Taux de conversion",
+      value: `${convRate}%`,
+      change: successCount > 0 ? `${successCount} signés` : "Aucun signé",
+      up: successCount > 0,
+      sub: "statut Signé",
+    },
+  ];
+
+  // ── Charts ────────────────────────────────────────────────────────────────
+  const lineData  = buildLineData(clients);
+  const radarData = buildRadarData(clients);
+
+  // ── Top ville + stats par statut ─────────────────────────────────────────
+  const cityCounts = clients.reduce<Record<string, number>>((acc, c) => {
+    const key = c.city || "Inconnu";
+    acc[key] = (acc[key] || 0) + 1;
+    return acc;
+  }, {});
+  const topCity = Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0];
+
+  const statusCounts = (["new", "pending", "success", "lost", "to_recontact"] as const).map(s => ({
+    label: STATUS_LABELS[s],
+    value: clients.filter(c => c.status === s).length,
+    max: total,
+  }));
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="pb-8">
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Analytics</h1>
-          <p className="text-sm text-muted-foreground">Vue tableau de bord (sessions, canaux, revenus).</p>
+          <p className="text-sm text-muted-foreground">
+            Données réelles de votre base — {total} contacts chargés.
+          </p>
         </div>
-        <Button variant="outline">Download CSV</Button>
       </div>
 
+      {/* KPI cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((item) => (
           <Card key={item.title} className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
@@ -79,10 +157,12 @@ const Analytics = () => {
             <CardContent className="flex items-center justify-between">
               <div>
                 <div className="text-2xl font-semibold">{item.value}</div>
-                <p className="text-xs text-muted-foreground">Mon ● Tue ● Wed ● Thu ● Fri</p>
+                <p className="text-xs text-muted-foreground">{item.sub}</p>
               </div>
               <Badge variant="secondary" className="flex items-center gap-1">
-                {item.up ? <ArrowUpRight className="h-3 w-3 text-emerald-500" /> : <ArrowDownRight className="h-3 w-3 text-rose-500" />}
+                {item.up
+                  ? <ArrowUpRight className="h-3 w-3 text-emerald-500" />
+                  : <ArrowDownRight className="h-3 w-3 text-rose-500" />}
                 <span className={item.up ? "text-emerald-600" : "text-rose-600"}>{item.change}</span>
               </Badge>
             </CardContent>
@@ -90,75 +170,102 @@ const Analytics = () => {
         ))}
       </div>
 
+      {/* Charts row */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        {/* Line chart — contacts créés ces 14 derniers jours */}
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
-          <CardHeader className="flex items-center justify-between">
-            <div>
-              <CardTitle>Sessions overview</CardTitle>
-              <p className="text-xs text-muted-foreground">01/15/19 – 01/28/19</p>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="cursor-pointer">Today</span>
-              <span className="cursor-pointer rounded-full bg-primary/10 px-2 py-1 text-primary">7d</span>
-              <span className="cursor-pointer">2w</span>
-              <span className="cursor-pointer">1m</span>
-            </div>
+          <CardHeader>
+            <CardTitle>Contacts créés — 14 derniers jours</CardTitle>
+            <p className="text-xs text-muted-foreground">Par date d'ajout dans la base</p>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={lineData}>
-                <XAxis dataKey="label" stroke="#94a3b8" />
-                <YAxis stroke="#94a3b8" domain={[0, 400]} />
-                <Tooltip />
-                <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2.4} dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            {lineData.every(d => d.value === 0) ? (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                Aucune donnée sur cette période
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={lineData}>
+                  <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
+                  <YAxis stroke="#94a3b8" allowDecimals={false} />
+                  <Tooltip formatter={(v: number) => [`${v} contact(s)`, "Ajoutés"]} />
+                  <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2.4} dot={{ r: 3 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
+        {/* Radar chart — répartition par statut */}
         <Card className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
-            <CardTitle>Views by browser</CardTitle>
+            <CardTitle>Répartition par statut</CardTitle>
           </CardHeader>
           <CardContent className="h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={radarData}>
-                <PolarGrid />
-                <PolarAngleAxis dataKey="channel" />
-                <Radar dataKey="value" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.25} />
-              </RadarChart>
-            </ResponsiveContainer>
+            {total === 0 ? (
+              <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                Aucun contact
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={radarData}>
+                  <PolarGrid />
+                  <PolarAngleAxis dataKey="channel" tick={{ fontSize: 11 }} />
+                  <Radar dataKey="value" stroke="#7c3aed" fill="#7c3aed" fillOpacity={0.25} />
+                </RadarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
 
+      {/* Bottom row */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
+        {/* Top stats tiles */}
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
-          <CardContent className="grid gap-4 md:grid-cols-4 pt-6">
-            {lowerCards.map((card) => (
-              <div key={card.title} className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
-                <p className="text-xs text-muted-foreground">{card.title}</p>
-                <p className="text-sm font-semibold">{card.subtitle}</p>
-                <p className="text-xs text-muted-foreground">{card.value}</p>
-              </div>
-            ))}
+          <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
+            <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
+              <p className="text-xs text-muted-foreground">Top ville</p>
+              <p className="text-sm font-semibold">{topCity?.[0] ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">{topCity?.[1] ?? 0} contact(s)</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
+              <p className="text-xs text-muted-foreground">Nouveaux ce mois</p>
+              <p className="text-sm font-semibold">{newThisMonth}</p>
+              <p className="text-xs text-muted-foreground">contacts ajoutés</p>
+            </div>
+            <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
+              <p className="text-xs text-muted-foreground">Contacts signés</p>
+              <p className="text-sm font-semibold">{successCount}</p>
+              <p className="text-xs text-muted-foreground">{convRate}% de conversion</p>
+            </div>
           </CardContent>
         </Card>
 
+        {/* Statuts breakdown */}
         <Card className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
-            <CardTitle>Statistics</CardTitle>
+            <CardTitle>Contacts par statut</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {statsCards.map((stat) => (
+            {statusCounts.map((stat) => (
               <div key={stat.label} className="rounded-lg border border-slate-200/60 p-3 dark:border-slate-800/80">
                 <div className="flex items-center justify-between text-sm">
                   <span>{stat.label}</span>
-                  {stat.max ? <span className="text-muted-foreground text-xs">Max {stat.max}</span> : null}
+                  {stat.max > 0 && (
+                    <span className="text-muted-foreground text-xs">
+                      {((stat.value / stat.max) * 100).toFixed(0)}%
+                    </span>
+                  )}
                 </div>
                 <div className="mt-1 flex items-center justify-between">
-                  <span className="text-xl font-semibold">{typeof stat.value === "number" ? stat.value : stat.value.toString()}</span>
-                  {stat.delta && <Badge variant="secondary">{stat.delta}</Badge>}
+                  <span className="text-xl font-semibold">{stat.value}</span>
+                  <div className="w-20 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-violet-500 rounded-full"
+                      style={{ width: stat.max > 0 ? `${(stat.value / stat.max) * 100}%` : "0%" }}
+                    />
+                  </div>
                 </div>
               </div>
             ))}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -36,6 +36,13 @@ const RequireAuth = ({ children }: { children: JSX.Element }) => {
   return children;
 };
 
+const PublicOnly = ({ children }: { children: JSX.Element }) => {
+  const { token, ready } = useAuth();
+  if (!ready) return null;
+  if (token) return <Navigate to="/" replace />;
+  return children;
+};
+
 const LayoutRoute = ({
   title,
   breadcrumbs,
@@ -53,11 +60,6 @@ const LayoutRoute = ({
 const App = () => {
   const [showSplash, setShowSplash] = useState(true);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => setShowSplash(false), 1200);
-    return () => window.clearTimeout(timeout);
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -65,12 +67,12 @@ const App = () => {
         <Sonner />
         <AuthProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            {showSplash && <SplashScreen />}
+            {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
               <ErrorBoundary>
                 <MotionRoutes>
-                  <Route path="/login" element={<Login />} />
-                <Route path="/signup" element={<SignUp />} />
+                  <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+                <Route path="/signup" element={<PublicOnly><SignUp /></PublicOnly>} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/support" element={<Support />} />
                 <Route

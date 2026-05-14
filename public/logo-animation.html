@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myclerk — Animation Logo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#07070f;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:20px;overflow:hidden}
+canvas{border-radius:18px;box-shadow:0 16px 80px rgba(0,0,0,.95);max-width:95vw;max-height:85vh;cursor:pointer}
+button{background:rgba(255,255,255,.08);color:#fff;border:1px solid rgba(255,255,255,.15);padding:10px 28px;border-radius:10px;cursor:pointer;font:14px sans-serif;transition:background .2s}
+button:hover{background:rgba(255,255,255,.18)}
+p.hint{color:rgba(255,255,255,.35);font:12px sans-serif;text-align:center}
+</style>
+</head>
+<body>
+<canvas id="c" width="900" height="480"></canvas>
+<button id="btn">↺ Rejouer</button>
+<!--
+  ═══════════════════════════════════════════════════════
+  IMAGE RÉELLE REQUISE — PAS DE REPRODUCTION
+  Sauvegarder le logo PNG dans : public/myclerk-logo.png
+  ═══════════════════════════════════════════════════════
+-->
+<p class="hint">Cliquer sur le canvas pour rejouer · Image requise : public/myclerk-logo.png</p>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// myclerk Logo Animation
+// Utilise l'IMAGE RÉELLE (myclerk-logo.png) — aucune reproduction
+// Spring physics pour le bounce, particules de suie pour l'ambiance
+// ════════════════════════════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 900, H = 480;
+
+// ── Chargement du logo réel ──────────────────────────────────────────────────
+const logo = new Image();
+logo.src   = 'myclerk-logo.png';   // fichier dans public/
+let logoLoaded = false;
+logo.onload  = () => { logoLoaded = true; };
+logo.onerror = () => { console.warn('⚠ myclerk-logo.png introuvable dans public/'); };
+
+// ── Spring physics ───────────────────────────────────────────────────────────
+// Paramètres : stiffness élevé + damping faible = beaucoup de rebond
+function makeSpring(pos, target, stiff = 0.11, damp = 0.60) {
+  return { pos, vel: 0, target, stiff, damp };
+}
+function tickSp(s) {
+  s.vel = s.vel * s.damp + (s.target - s.pos) * s.stiff;
+  s.pos += s.vel;
+}
+
+// Springs du logo
+let spY, spSc, spOp;
+
+function initSprings() {
+  spY  = makeSpring(-280, 240, 0.11, 0.60);  // Y : tombe depuis le haut
+  spSc = makeSpring(0.20, 1.00, 0.08, 0.58); // Scale : grossit avec overshoot
+  spOp = makeSpring(0.00, 1.00, 0.10, 0.72); // Opacity : fade-in rapide
+}
+
+// Float idle (oscillation sinusoïdale après établissement du spring)
+let idlePhase = 0;
+let springsSettled = false;
+
+// ── Particules de suie ────────────────────────────────────────────────────────
+const ptcls = [];
+function emit(x, y, n, spd = 5) {
+  for (let i = 0; i < n; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const v = spd * (0.5 + Math.random() * 0.6);
+    ptcls.push({ x, y, vx: Math.cos(a)*v, vy: Math.sin(a)*v - 2.5,
+                 r: 1.5 + Math.random() * 4, life: 1, dec: .011 + Math.random()*.017 });
+  }
+}
+
+// ── État global ───────────────────────────────────────────────────────────────
+let startTs  = null;
+let burstDone = false;
+
+function reset() {
+  startTs    = null;
+  burstDone  = false;
+  idlePhase  = 0;
+  springsSettled = false;
+  ptcls.length = 0;
+  initSprings();
+}
+
+// ── Boucle principale ─────────────────────────────────────────────────────────
+function loop(ts) {
+  if (!startTs) startTs = ts;
+  const t = (ts - startTs) / 1000;
+
+  // Physique particles
+  for (let i = ptcls.length - 1; i >= 0; i--) {
+    const p = ptcls[i];
+    p.x += p.vx; p.y += p.vy; p.vy += .09; p.vx *= .97; p.life -= p.dec;
+    if (p.life <= 0) ptcls.splice(i, 1);
+  }
+
+  // ── FOND ─────────────────────────────────────────────────────────────────
+  // Noir → blanc rapide à t=0.7s (flash au moment de l'impact)
+  const bgP = t < 0.65 ? 0 : Math.min((t - 0.65) / 0.30, 1);
+  const bv  = Math.round(bgP * 250);
+  ctx.fillStyle = `rgb(${bv},${bv},${bv})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // ── OUVERTURE : deux points lumineux (0.15 → 0.72s) ─────────────────────
+  if (t > 0.15 && t < 0.76) {
+    const p  = Math.min((t - 0.15) / 0.46, 1);
+    const r  = 2 + p * 15;
+    const sp = 5 + p * 19;
+    ctx.save();
+    ctx.globalAlpha  = p * 0.92;
+    ctx.shadowColor  = '#ffffff';
+    ctx.shadowBlur   = r * 4.5;
+    ctx.fillStyle    = '#ffffff';
+    for (const dx of [-sp, sp]) {
+      ctx.beginPath();
+      ctx.arc(W/2 + dx, H/2, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ── SPRING LOGO : active à t=0.78s ───────────────────────────────────────
+  if (t >= 0.78) {
+    tickSp(spY);
+    tickSp(spSc);
+    tickSp(spOp);
+
+    // Float idle quand le spring est stabilisé
+    const settled = Math.abs(spY.vel) < 0.08 && Math.abs(spY.target - spY.pos) < 0.5;
+    if (settled) {
+      if (!springsSettled) { springsSettled = true; }
+      idlePhase += 0.018;
+      spY.pos = spY.target + Math.sin(idlePhase) * 9;
+    }
+
+    // Burst de particules au premier passage par y=0 (environ t=1.15s)
+    if (!burstDone && spY.pos >= 230 && spY.pos <= 250) {
+      burstDone = true;
+      emit(W/2, H/2 + 60, 40, 6);
+    }
+
+    // ── DESSIN DU LOGO RÉEL ─────────────────────────────────────────────────
+    if (logoLoaded) {
+      const displayW = 600;
+      const displayH = displayW * (logo.naturalHeight / logo.naturalWidth);
+      const x = W/2 - displayW/2;
+      const y = spY.pos - displayH/2;
+
+      ctx.save();
+      ctx.globalAlpha = Math.min(spOp.pos, 1);
+      ctx.translate(W/2, spY.pos);
+      ctx.scale(spSc.pos, spSc.pos);
+      ctx.drawImage(logo, -displayW/2, -displayH/2, displayW, displayH);
+      ctx.restore();
+    } else {
+      // Fallback si image manquante
+      ctx.save();
+      ctx.globalAlpha   = Math.min(spOp.pos, 1);
+      ctx.translate(W/2, spY.pos);
+      ctx.scale(spSc.pos, spSc.pos);
+      ctx.fillStyle     = '#1a1a2e';
+      ctx.font          = '900 72px "Nunito", Arial, sans-serif';
+      ctx.textAlign     = 'center';
+      ctx.textBaseline  = 'middle';
+      ctx.fillText('myclerk', 0, 0);
+      ctx.restore();
+    }
+  }
+
+  // ── PARTICULES ────────────────────────────────────────────────────────────
+  for (const p of ptcls) {
+    ctx.save();
+    ctx.globalAlpha = p.life * 0.45;
+    ctx.fillStyle   = '#1a1a2e';
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // ── VIGNETTE ─────────────────────────────────────────────────────────────
+  if (bgP > 0.4) {
+    const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H) * 0.7);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(0,0,0,${0.07 * bgP})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+reset();
+canvas.addEventListener('click', reset);
+document.getElementById('btn').addEventListener('click', reset);
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
