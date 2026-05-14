@@ -15,6 +15,14 @@ import { Loader2, Mic, MicOff, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { useCreateClient } from "@/hooks/use-clients";
 import type { CreateClientInput } from "@/services/clients";
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -27,7 +35,17 @@ interface ClientFormData {
   phone_number: string;
   email: string;
   description: string;
+  city: string;
+  districtType: "arrondissement" | "quartier" | null;
+  arrondissementNumber?: number | null;
+  districtName?: string | null;
 }
+
+const arrondissementCities: Record<string, number> = {
+  paris: 20,
+  lyon: 9,
+  marseille: 16,
+};
 
 const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps) => {
   const initialData = useMemo<ClientFormData>(
@@ -36,6 +54,10 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
       phone_number: "",
       email: "",
       description: "",
+      city: "",
+      districtType: null,
+      arrondissementNumber: null,
+      districtName: null,
     }),
     []
   );
@@ -58,6 +80,12 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
   const [dictationMessage, setDictationMessage] = useState<string | null>(null);
   const [transcript, setTranscript] = useState("");
   const [dictationError, setDictationError] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const arrondissementCount =
+    arrondissementCities[formData.city.trim().toLowerCase()] || 0;
+  const arrondissementList = arrondissementCount
+    ? Array.from({ length: arrondissementCount }, (_, idx) => idx + 1)
+    : [];
 
   const mutation = useCreateClient({
     onSuccess: () => {
@@ -84,12 +112,33 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
     },
   });
 
+  const detectDistrictType = (city: string): ClientFormData["districtType"] => {
+    const key = city.trim().toLowerCase();
+    if (arrondissementCities[key]) return "arrondissement";
+    if (key.length === 0) return null;
+    return "quartier";
+  };
+
   const toPayload = (data: ClientFormData): CreateClientInput => ({
-    company: data.name,
-    phone: data.phone_number,
-    email: data.email,
-    notes: data.description,
+    last_name: data.name.trim(),
+    phone: data.phone_number.trim() || null,
+    email: data.email.trim() || null,
     status: "new",
+    notes: [
+      data.description?.trim() || null,
+      data.city ? `Ville : ${data.city}` : null,
+      data.districtType === "arrondissement" && data.arrondissementNumber
+        ? `Arrondissement : ${data.arrondissementNumber}`
+        : data.districtType === "quartier" && data.districtName
+        ? `Quartier : ${data.districtName}`
+        : null,
+    ].filter(Boolean).join("\n") || null,
+    metadata: {
+      city: data.city?.trim() || null,
+      districtType: data.districtType,
+      districtName: data.districtName || null,
+      arrondissementNumber: data.arrondissementNumber || null,
+    },
   });
 
   const validateForm = (data: ClientFormData = formData): boolean => {
@@ -108,6 +157,14 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
       if (!emailRegex.test(data.email.trim())) {
         newErrors.email = "Email invalide";
       }
+    }
+
+    if (!data.city || data.city.trim().length === 0) {
+      newErrors.city = "La ville est requise";
+    }
+
+    if (data.districtType === "arrondissement" && !data.arrondissementNumber) {
+      newErrors.arrondissementNumber = "Choisissez un arrondissement";
     }
 
     if (data.description && data.description.length > 10000) {
@@ -203,8 +260,21 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
     recognition.start();
   };
 
-  const handleChange = (field: keyof ClientFormData, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const handleChange = (field: keyof ClientFormData, value: string | number | null) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value } as ClientFormData;
+      if (field === "city") {
+        const district = detectDistrictType(String(value));
+        next.districtType = district;
+        if (district !== "arrondissement") {
+          next.arrondissementNumber = null;
+        }
+        if (district === "arrondissement") {
+          next.districtName = null;
+        }
+      }
+      return next;
+    });
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
@@ -212,13 +282,13 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]" aria-label="Ajouter un client">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[420px] max-h-[90vh] flex flex-col" aria-label="Ajouter un client">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Ajouter un client</DialogTitle>
-          <DialogDescription>Creer un nouveau client dans votre base de prospection.</DialogDescription>
+          <DialogDescription>Créer un nouveau client dans votre base de prospection.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="space-y-4 py-4">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+          <div className="space-y-3 py-3 overflow-y-auto flex-1 pr-1">
             <div className="space-y-2">
               <Label htmlFor="name">
                 Nom <span className="text-destructive">*</span>
@@ -274,6 +344,49 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
             </div>
 
             <div className="space-y-2">
+              <Label htmlFor="city">
+                Ville <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="city"
+                name="city"
+                value={formData.city}
+                onChange={(e) => handleChange("city", e.target.value)}
+                placeholder="Paris, Lyon, Marseille..."
+                className={errors.city ? "border-destructive" : ""}
+                disabled={mutation.isPending}
+                aria-invalid={!!errors.city}
+              />
+              {errors.city && <p className="text-sm text-destructive">{errors.city}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <Label>
+                Arrondissement / Quartier
+              </Label>
+              {formData.districtType === "arrondissement" ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-between w-full"
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    {formData.arrondissementNumber ? `Arrondissement ${formData.arrondissementNumber}` : "Choisir un arrondissement"}
+                  </Button>
+                  {errors.arrondissementNumber && <p className="text-sm text-destructive">{errors.arrondissementNumber}</p>}
+                </>
+              ) : (
+                <Input
+                  value={formData.districtName || ""}
+                  onChange={(e) => handleChange("districtName", e.target.value)}
+                  placeholder="Quartier (optionnel)"
+                  disabled={mutation.isPending}
+                />
+              )}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="description">Description</Label>
               <Textarea
                 id="description"
@@ -283,7 +396,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
                 onChange={(e) => handleChange("description", e.target.value)}
                 placeholder="Notes ou description du client..."
                 className={errors.description ? "border-destructive" : ""}
-                rows={4}
+                rows={2}
                 disabled={mutation.isPending}
                 aria-invalid={!!errors.description}
               />
@@ -319,7 +432,7 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
               </div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 pt-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={mutation.isPending}>
               Annuler
             </Button>
@@ -335,6 +448,38 @@ const AddClientDialog = ({ open, onOpenChange, onSuccess }: AddClientDialogProps
             </Button>
           </DialogFooter>
         </form>
+        <Drawer open={pickerOpen} onOpenChange={setPickerOpen} shouldScaleBackground={false}>
+          <DrawerContent className="pb-[max(var(--safe-bottom),16px)]">
+            <DrawerHeader>
+              <DrawerTitle>Choisir un arrondissement</DrawerTitle>
+            </DrawerHeader>
+            <div className="relative px-4">
+              <div className="ios-wheel">
+                <div className="ios-wheel-highlight" aria-hidden />
+                {arrondissementList.map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    className={`ios-wheel-item w-full ${formData.arrondissementNumber === num ? "text-foreground font-semibold" : "text-muted-foreground"}`}
+                    onClick={() => {
+                      handleChange("arrondissementNumber", num);
+                      setPickerOpen(false);
+                    }}
+                  >
+                    {num}e arrondissement
+                  </button>
+                ))}
+              </div>
+            </div>
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <Button variant="ghost" className="h-[44px] w-full">
+                  Fermer
+                </Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </DialogContent>
     </Dialog>
   );
