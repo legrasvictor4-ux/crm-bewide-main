@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Users, BarChart2, Upload, Settings,
-  LogOut, Shield, Clock, Calendar, MapPin, Zap, Contact, X,
+  LogOut, Shield, Clock, Calendar, MapPin, Zap, Contact, X, ScanLine,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,6 +11,7 @@ const NAV = [
   { to: "/",           label: "Accueil",       icon: LayoutDashboard, end: true },
   { to: "/contacts",   label: "Contacts",      icon: Contact },
   { to: "/prospection",label: "Prospection",   icon: Users },
+  { to: "/scout",      label: "Scout IA",      icon: ScanLine, badge: "NEW" },
   { to: "/timeline",   label: "Timeline",      icon: Clock },
   { to: "/agenda",     label: "Agenda",        icon: Calendar },
   { to: "/map",        label: "Carte",         icon: MapPin },
@@ -56,7 +57,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
 
       {/* ── Navigation ────────────────────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto px-3 py-2 space-y-0.5">
-        {NAV.map(({ to, label, icon: Icon, end }) => (
+        {NAV.map(({ to, label, icon: Icon, end, badge }) => (
           <NavLink
             key={to}
             to={to}
@@ -73,7 +74,12 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
             {({ isActive }) => (
               <>
                 <Icon className={`h-[17px] w-[17px] shrink-0 ${isActive ? "text-white" : "text-[#1a1a2e]/50"}`} />
-                {label}
+                <span className="flex-1">{label}</span>
+                {badge && !isActive && (
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-[#1a1a2e] text-white">
+                    {badge}
+                  </span>
+                )}
               </>
             )}
           </NavLink>

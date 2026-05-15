@@ -35,12 +35,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [email]);
 
   useEffect(() => {
-    const syncSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
-      setToken(session?.access_token ?? null);
-      setEmail(session?.user?.email ?? null);
+    const supabaseConfigured = Boolean(
+      import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
+    );
+
+    // Si Supabase n'est pas configuré (ou injoignable côté réseau), éviter de bloquer le rendu.
+    if (!supabaseConfigured) {
+      setToken(null);
+      setEmail(null);
       setReady(true);
+      return;
+    }
+
+    const syncSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = data.session;
+        setToken(session?.access_token ?? null);
+        setEmail(session?.user?.email ?? null);
+      } catch (e) {
+        console.error('[AuthContext] getSession failed:', e);
+        // Purge locale sans appel réseau pour stopper toute boucle de refresh
+        try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
+        setToken(null);
+        setEmail(null);
+      } finally {
+        setReady(true);
+      }
     };
     void syncSession();
 
@@ -51,9 +72,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
     return () => {
-      data.subscription.unsubscribe();
+      // Certaines versions/erreurs réseau peuvent rendre subscription indisponible.
+      try {
+        data?.subscription?.unsubscribe?.();
+      } catch {
+        // no-op
+      }
     };
   }, []);
+
 
   const login = async (payload: { email?: string; password?: string; provider?: "google" | "apple"; otpToken?: string }) => {
     if (payload.provider === "google") {

@@ -24,7 +24,7 @@ const defaultTabs: NativeShellProps["tabs"] = [
 const NativeShell = ({ tabs = defaultTabs }: NativeShellProps) => {
   return (
     <nav className="native-tabs md:hidden">
-      <div className="native-tabs-inner">
+      <div className="native-tabs-inner pb-[calc(6px+var(--safe-bottom))]">
         {tabs.map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}

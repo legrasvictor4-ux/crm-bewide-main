@@ -20,7 +20,10 @@ async function withRetry<T>(fn: () => Promise<T>, retries = 2, delay = 250): Pro
   try {
     return await fn();
   } catch (error) {
-    if (retries <= 0) throw error;
+    if (retries <= 0) {
+      if (error instanceof ApiError) throw error;
+      throw new ApiError("Impossible de charger les clients. Réessayer.", 500, "CLIENTS_FETCH_FAILED", error);
+    }
     await wait(delay);
     return withRetry(fn, retries - 1, delay * 2);
   }
@@ -32,8 +35,11 @@ export async function fetchClients(params: FetchClientsParams = {}): Promise<Cli
   return withRetry(async () => {
     let query = supabase
       .from("clients")
-      .select("*")
-      .order(sortByScore ? "lead_score" : "date_created", { ascending: false });
+      .select("*");
+
+    if (sortByScore) {
+      query = query.order("lead_score", { ascending: false });
+    }
 
     if (filter !== "all") {
       query = query.eq("status", filter);
@@ -41,7 +47,7 @@ export async function fetchClients(params: FetchClientsParams = {}): Promise<Cli
 
     const { data, error } = await query;
     if (error) {
-      throw new ApiError(error.message, 500, "CLIENTS_FETCH_FAILED", error);
+      throw new ApiError("Impossible de charger les clients. Réessayer.", 500, "CLIENTS_FETCH_FAILED", error);
     }
 
     const term = search.toLowerCase();

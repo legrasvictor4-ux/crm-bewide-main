@@ -42,11 +42,11 @@ const Agenda = () => {
   const dayEvents = events[selectedDateKey] || [];
 
   const toggleComplete = (eventId: string) => {
-    setEvents(prev => {
+    setEvents((prev) => {
       const updated = { ...prev };
       if (updated[selectedDateKey]) {
-        updated[selectedDateKey] = updated[selectedDateKey].map(e =>
-          e.id === eventId ? { ...e, completed: !e.completed } : e
+        updated[selectedDateKey] = updated[selectedDateKey].map((e) =>
+          e.id === eventId ? { ...e, completed: !e.completed } : e,
         );
       }
       return updated;
@@ -56,31 +56,39 @@ const Agenda = () => {
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case "rdv": return "bg-success/10 text-success border-success/20";
-      case "prospection": return "bg-accent/10 text-accent border-accent/20";
-      case "rappel": return "bg-warning/10 text-warning border-warning/20";
-      default: return "bg-muted text-muted-foreground";
+      case "rdv":
+        return "bg-success/10 text-success border-success/20";
+      case "prospection":
+        return "bg-accent/10 text-accent border-accent/20";
+      case "rappel":
+        return "bg-warning/10 text-warning border-warning/20";
+      default:
+        return "bg-muted text-muted-foreground";
     }
   };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
-      case "rdv": return "RDV";
-      case "prospection": return "Prospection";
-      case "rappel": return "Rappel";
-      default: return type;
+      case "rdv":
+        return "RDV";
+      case "prospection":
+        return "Prospection";
+      case "rappel":
+        return "Rappel";
+      default:
+        return type;
     }
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b border-border bg-card/80 backdrop-blur-xl sticky top-0 z-10">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+      <header className="border-b border-border bg-card/85 backdrop-blur-xl sticky top-0 z-10">
+        <div className="page-shell py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => navigate("/")}
-                className="p-2 hover:bg-secondary rounded-xl transition-colors"
+                className="p-2 hover:bg-secondary rounded-[12px] transition-colors"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
@@ -91,7 +99,7 @@ const Agenda = () => {
                 </p>
               </div>
             </div>
-            <Button className="gap-2">
+            <Button className="gap-2 px-5">
               <Plus className="h-4 w-4" />
               Nouveau RDV
             </Button>
@@ -99,42 +107,44 @@ const Agenda = () => {
         </div>
       </header>
 
-      <div className="container mx-auto px-6 py-6">
-        {/* Week selector */}
-        <div className="grid grid-cols-7 gap-2 mb-8">
-          {weekDays.map((day) => {
-            const isSelected = isSameDay(day, selectedDate);
-            const isToday = isSameDay(day, new Date());
-            const dayKey = format(day, "yyyy-MM-dd");
-            const hasEvents = events[dayKey]?.length > 0;
+      <div className="page-shell py-6 space-y-6">
+        <div className="-mx-2 overflow-x-auto pb-2">
+          <div className="flex gap-3 px-2 min-w-full">
+            {weekDays.map((day) => {
+              const isSelected = isSameDay(day, selectedDate);
+              const isToday = isSameDay(day, new Date());
+              const dayKey = format(day, "yyyy-MM-dd");
+              const hasEvents = events[dayKey]?.length > 0;
 
-            return (
-              <button
-                key={day.toISOString()}
-                onClick={() => setSelectedDate(day)}
-                className={`p-4 rounded-2xl text-center transition-all duration-200 ${
-                  isSelected
-                    ? "bg-accent text-accent-foreground shadow-lg shadow-accent/25"
-                    : isToday
-                    ? "bg-secondary border-2 border-accent/30"
-                    : "bg-card hover:bg-secondary border border-border"
-                }`}
-              >
-                <div className="text-xs font-medium opacity-70 mb-1">
-                  {format(day, "EEE", { locale: fr })}
-                </div>
-                <div className="text-xl font-bold">{format(day, "d")}</div>
-                {hasEvents && (
-                  <div className={`w-1.5 h-1.5 rounded-full mx-auto mt-2 ${
-                    isSelected ? "bg-accent-foreground" : "bg-accent"
-                  }`} />
-                )}
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={day.toISOString()}
+                  onClick={() => setSelectedDate(day)}
+                  className={`flex w-[72px] flex-col items-center justify-center rounded-[18px] px-3 py-3 text-center transition-all duration-200 ${
+                    isSelected
+                      ? "bg-accent text-accent-foreground shadow-lg shadow-accent/25"
+                      : isToday
+                        ? "bg-secondary border border-accent/30 text-foreground"
+                        : "bg-card border border-border text-foreground"
+                  }`}
+                >
+                  <div className="text-[12px] font-medium opacity-70 mb-1">
+                    {format(day, "EEE", { locale: fr })}
+                  </div>
+                  <div className="text-xl font-bold leading-none">{format(day, "d")}</div>
+                  {hasEvents && (
+                    <div
+                      className={`w-1.5 h-1.5 rounded-full mt-2 ${
+                        isSelected ? "bg-accent-foreground" : "bg-accent"
+                      }`}
+                    />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
-        {/* Events list */}
         <div className="space-y-4">
           {dayEvents.length === 0 ? (
             <div className="text-center py-16 bg-card rounded-2xl border border-border">
@@ -149,9 +159,7 @@ const Agenda = () => {
             dayEvents.map((event, index) => (
               <div
                 key={event.id}
-                className={`card-interactive p-5 animate-slide-up ${
-                  event.completed ? "opacity-60" : ""
-                }`}
+                className={`card-interactive p-5 animate-slide-up ${event.completed ? "opacity-60" : ""}`}
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="flex items-start gap-4">
@@ -168,12 +176,12 @@ const Agenda = () => {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className={`font-semibold text-lg ${
-                        event.completed ? "line-through" : ""
-                      }`}>
+                      <h3 className={`font-semibold text-lg ${event.completed ? "line-through" : ""}`}>
                         {event.title}
                       </h3>
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${getTypeColor(event.type)}`}>
+                      <span
+                        className={`px-2.5 py-1 rounded-lg text-xs font-medium border ${getTypeColor(event.type)}`}
+                      >
                         {getTypeLabel(event.type)}
                       </span>
                     </div>

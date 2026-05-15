@@ -1,17 +1,48 @@
-import { useState } from "react";
-import { Mic, Map, Users, TrendingUp, Clock, Sparkles, ArrowRight, FileSpreadsheet, Download, LineChart } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Mic,
+  Map,
+  Users,
+  TrendingUp,
+  Clock,
+  Sparkles,
+  FileSpreadsheet,
+  CheckCircle2,
+  XCircle,
+  RefreshCcw,
+  Plus,
+} from "lucide-react";
 import VoiceRecorder from "@/components/VoiceRecorder";
 import ProspectionList from "@/components/ProspectionList";
 import ExcelUpload from "@/components/ExcelUpload";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import ActionBar from "@/components/ActionBar";
-import LeadScoreLegend from "@/components/LeadScoreLegend";
 import AddClientDialog from "@/components/AddClientDialog";
-import KpiCard from "@/components/dashboard/KpiCard";
-import TrendLine from "@/components/dashboard/TrendLine";
-import MiniBarChart from "@/components/dashboard/MiniBarChart";
-import RadarChart from "@/components/dashboard/RadarChart";
+import { useClients } from "@/hooks/use-clients";
+
+const StatCard = ({
+  label,
+  value,
+  icon,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  icon: React.ReactNode;
+  sub?: string;
+}) => (
+  <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4 shadow-sm">
+    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+      {icon}
+    </div>
+    <div className="min-w-0">
+      <p className="text-2xl font-bold text-foreground leading-none">{value}</p>
+      <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+      {sub && <p className="text-[11px] text-primary font-medium mt-0.5">{sub}</p>}
+    </div>
+  </div>
+);
 
 const Index = () => {
   const navigate = useNavigate();
@@ -24,191 +55,158 @@ const Index = () => {
   const [sortByScore, setSortByScore] = useState(false);
   const [search, setSearch] = useState("");
 
-  // Sample data; replace with live queries when available
-  const kpiData = [
-    { label: "Total Clients", value: "2 430", diff: "+8.2%", tone: "up" as const, icon: <Users className="h-4 w-4" /> },
-    { label: "Lead Score moyen", value: "64", diff: "+3.1%", tone: "up" as const, icon: <TrendingUp className="h-4 w-4" /> },
-    { label: "Nouveaux cette semaine", value: "58", diff: "+12", tone: "up" as const, icon: <Clock className="h-4 w-4" /> },
-    { label: "Taux de conversion", value: "27%", diff: "-1.4%", tone: "down" as const, icon: <LineChart className="h-4 w-4" /> },
-    { label: "Imports Excel", value: "12", diff: "+3", tone: "up" as const, icon: <Download className="h-4 w-4" /> },
-  ];
+  const { data: clients = [], isLoading: clientsLoading } = useClients({
+    filter: "all",
+  });
 
-  const trendData = [
-    { label: "Lun", value: 22 }, // nouveaux leads/clients générés
-    { label: "Mar", value: 28 },
-    { label: "Mer", value: 35 },
-    { label: "Jeu", value: 42 },
-    { label: "Ven", value: 31 },
-    { label: "Sam", value: 18 },
-    { label: "Dim", value: 24 },
-  ];
-
-  const sourcesData = [
-    { label: "Social (posts IA)", value: 48 },
-    { label: "Prospection (scripts IA)", value: 22 },
-    { label: "Référencement local", value: 18 },
-    { label: "Email nurturing", value: 12 },
-  ];
-
-  const leadScoreData = [
-    { label: "80-100", value: 32 },
-    { label: "60-79", value: 54 },
-    { label: "40-59", value: 67 },
-    { label: "< 40", value: 18 },
-  ];
-
-  const browserData = [
-    { label: "Social", value: 62 },
-    { label: "Prospection", value: 28 },
-    { label: "Référencement", value: 34 },
-    { label: "Email", value: 22 },
-  ];
-
-  const platformData = [
-    { label: "Desktop", value: 71 },
-    { label: "Mobile", value: 23 },
-    { label: "Tablet", value: 6 },
-  ];
-
-  const sessionData = [
-    { label: "<1 min", value: 14 },
-    { label: "1-3 min", value: 38 },
-    { label: "3-10 min", value: 29 },
-    { label: "10+ min", value: 19 },
-  ];
+  const stats = useMemo(() => {
+    const total = clients.length;
+    const newCount = clients.filter((c) => c.status === "new").length;
+    const pending = clients.filter((c) => c.status === "pending").length;
+    const success = clients.filter((c) => c.status === "success").length;
+    const lost = clients.filter((c) => c.status === "lost").length;
+    const toRecontact = clients.filter((c) => c.status === "to_recontact").length;
+    const convRate = total > 0 ? Math.round((success / total) * 100) : 0;
+    const avgScore =
+      total > 0
+        ? Math.round(clients.reduce((s, c) => s + (c.lead_score ?? 0), 0) / total)
+        : 0;
+    return { total, newCount, pending, success, lost, toRecontact, convRate, avgScore };
+  }, [clients]);
 
   const handleImportSuccess = () => {
-    setRefreshTrigger(prev => prev + 1);
+    setRefreshTrigger((p) => p + 1);
     setShowExcelUpload(false);
   };
 
   return (
-    <main className="min-h-screen bg-background text-foreground">
-      {/* Workspace Action Bar */}
-      <div className="sticky top-16 z-30">
-        <div className="bg-card backdrop-blur border border-border rounded-b-3xl shadow-md">
-          <div className="flex flex-col gap-3 p-5">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-3 flex-1 min-w-0">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Sparkles className="h-4 w-4" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-semibold leading-tight">Workspace Prospection</span>
-                  <span className="text-xs text-muted-foreground leading-tight">Vue synthèse du pipeline et des actions rapides</span>
-                </div>
+    <div className="min-h-screen bg-background text-foreground">
+      {/* Barre d'actions */}
+      <div className="sticky top-[57px] z-30 bg-card border-b border-border">
+        <div className="px-4 py-3 lg:px-6 flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
               </div>
-              <div className="flex items-stretch gap-2 w-full md:w-auto flex-wrap justify-stretch md:justify-end">
-                <Button size="sm" variant="secondary" onClick={() => setShowExcelUpload(true)} className="gap-2 w-full md:w-auto">
-                  <FileSpreadsheet className="h-4 w-4" />
-                  Import
-                </Button>
-                <Button size="sm" onClick={() => setShowAddDialog(true)} className="gap-2 w-full md:w-auto">
-                  <Sparkles className="h-4 w-4" /> Ajouter un client
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowRecorder(true)} className="gap-2 w-full md:w-auto">
-                  <Mic className="h-4 w-4" /> Dictée
-                </Button>
+              <div>
+                <p className="text-sm font-semibold leading-tight">Tableau de bord</p>
+                <p className="text-[11px] text-muted-foreground leading-tight">Vue d'ensemble du pipeline</p>
               </div>
             </div>
-            <ActionBar
-              onAdd={() => setShowAddDialog(true)}
-              onImport={() => setShowExcelUpload(true)}
-              onToggleMap={() => navigate("/map")}
-              onSortLeadScore={() => setSortByScore((s) => !s)}
-              onFilterLeadScore={(n) => setMinScore(n)}
-              onClearLeadFilter={() => setMinScore(0)}
-              viewMode={viewMode}
-              setViewMode={setViewMode}
-              search={search}
-              setSearch={setSearch}
-              minScore={minScore}
-              sortByScore={sortByScore}
-            />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button size="sm" variant="outline" onClick={() => setShowExcelUpload(true)} className="gap-1.5">
+                <FileSpreadsheet className="h-3.5 w-3.5" />
+                Importer
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowRecorder(true)} className="gap-1.5">
+                <Mic className="h-3.5 w-3.5" />
+                Dictée
+              </Button>
+              <Button size="sm" onClick={() => setShowAddDialog(true)} className="gap-1.5">
+                <Plus className="h-3.5 w-3.5" />
+                Ajouter
+              </Button>
+            </div>
           </div>
+          <ActionBar
+            onAdd={() => setShowAddDialog(true)}
+            onImport={() => setShowExcelUpload(true)}
+            onToggleMap={() => navigate("/map")}
+            onSortLeadScore={() => setSortByScore((s) => !s)}
+            onFilterLeadScore={(n) => setMinScore(n)}
+            onClearLeadFilter={() => setMinScore(0)}
+            viewMode={viewMode}
+            setViewMode={setViewMode}
+            search={search}
+            setSearch={setSearch}
+            minScore={minScore}
+            sortByScore={sortByScore}
+          />
         </div>
       </div>
 
-      <div className="page-shell py-8 space-y-6">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 xl:grid-cols-5">
-          {kpiData.map((kpi) => (
-            <KpiCard key={kpi.label} label={kpi.label} value={kpi.value} diff={kpi.diff} tone={kpi.tone} icon={kpi.icon} />
-          ))}
+      <div className="px-4 py-5 lg:px-6 space-y-6">
+        {/* KPI cards — données réelles */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
+          <StatCard
+            label="Total clients"
+            value={clientsLoading ? "—" : stats.total}
+            icon={<Users className="h-5 w-5" />}
+          />
+          <StatCard
+            label="Nouveaux"
+            value={clientsLoading ? "—" : stats.newCount}
+            icon={<Clock className="h-5 w-5" />}
+          />
+          <StatCard
+            label="En attente"
+            value={clientsLoading ? "—" : stats.pending}
+            icon={<RefreshCcw className="h-5 w-5" />}
+          />
+          <StatCard
+            label="Convertis"
+            value={clientsLoading ? "—" : stats.success}
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            sub={stats.total > 0 ? `${stats.convRate}% taux de conversion` : undefined}
+          />
+          <StatCard
+            label="À recontacter"
+            value={clientsLoading ? "—" : stats.toRecontact}
+            icon={<RefreshCcw className="h-5 w-5" />}
+          />
+          <StatCard
+            label="Perdus"
+            value={clientsLoading ? "—" : stats.lost}
+            icon={<XCircle className="h-5 w-5" />}
+          />
+          <StatCard
+            label="Score moyen"
+            value={clientsLoading ? "—" : stats.avgScore > 0 ? `${stats.avgScore}/100` : "—"}
+            icon={<TrendingUp className="h-5 w-5" />}
+          />
+          <div className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4 shadow-sm">
+            <Link to="/map" className="flex items-center gap-4 w-full">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary shrink-0">
+                <Map className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-foreground">Carte</p>
+                <p className="text-[11px] text-primary font-medium mt-0.5">Voir le territoire →</p>
+              </div>
+            </Link>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="lg:col-span-2 space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <TrendLine title="Évolution des clients" data={trendData} subtitle="7 derniers jours (leads/clients générés)" />
-              <MiniBarChart title="Top canaux d'acquisition" data={sourcesData} />
-              <MiniBarChart title="Répartition lead score" data={leadScoreData} />
-            </div>
-
-            <div className="flex items-center justify-between px-1 pb-4">
-              <h2 className="text-xl font-bold text-foreground">Prospections</h2>
-              <LeadScoreLegend />
-            </div>
-            <ProspectionList
-              refreshTrigger={refreshTrigger}
-              minScore={minScore}
-              sortByScore={sortByScore}
-              search={search}
-            />
-          </div>
-
-          <div className="space-y-6">
-            <RadarChart title="Efficacité des canaux" data={browserData} />
-            <MiniBarChart title="Usage plateformes" data={platformData} />
-            <MiniBarChart title="Durée des sessions" data={sessionData} />
-            <div className="card-elevated p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Actions rapides</h3>
-              <div className="space-y-3">
-                <Button className="w-full justify-center gap-3" onClick={() => setShowExcelUpload(true)}>
-                  <FileSpreadsheet className="h-5 w-5" />
-                  Importer un fichier Excel
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="w-full justify-center gap-3"
-                  onClick={() => setShowRecorder(true)}
-                >
-                  <Mic className="h-5 w-5" />
-                  Nouvelle prospection vocale
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="w-full justify-center gap-3"
-                  onClick={() => setShowAddDialog(true)}
-                >
-                  <Sparkles className="h-5 w-5" />
-                  Ajouter un client
-                </Button>
-                <Link to="/map" className="block">
-                  <Button variant="ghost" className="w-full justify-center gap-3">
-                    <Map className="h-5 w-5" />
-                    Planifier un parcours
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </div>
+        {/* Liste de prospections */}
+        <div>
+          <h2 className="text-base font-bold text-foreground mb-3">Prospections</h2>
+          <ProspectionList
+            refreshTrigger={refreshTrigger}
+            minScore={minScore}
+            sortByScore={sortByScore}
+            search={search}
+          />
         </div>
       </div>
 
-      {/* Voice Recorder Modal */}
-      {showRecorder && (
-        <VoiceRecorder onClose={() => setShowRecorder(false)} />
-      )}
+      {showRecorder && <VoiceRecorder onClose={() => setShowRecorder(false)} />}
 
-      {/* Add Client Dialog */}
-      {showAddDialog && (
-        <AddClientDialog open={showAddDialog} onOpenChange={setShowAddDialog} onSuccess={() => setRefreshTrigger((r) => r + 1)} />
-      )}
+      <AddClientDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSuccess={() => setRefreshTrigger((r) => r + 1)}
+      />
 
-      {/* Excel Upload Modal */}
       {showExcelUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowExcelUpload(false)}>
-          <div className="bg-background rounded-lg shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setShowExcelUpload(false)}
+        >
+          <div
+            className="bg-background rounded-2xl shadow-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="p-6">
               <ExcelUpload onImportSuccess={handleImportSuccess} />
               <div className="mt-4 flex justify-end">
@@ -220,8 +218,7 @@ const Index = () => {
           </div>
         </div>
       )}
-
-    </main>
+    </div>
   );
 };
 

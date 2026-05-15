@@ -53,7 +53,7 @@ const ForgotPassword = () => {
             <div className="space-y-2">
               <h1 className="text-2xl font-semibold text-foreground">Mot de passe oublié</h1>
               <p className="text-sm text-muted-foreground">
-                Saisissez l'email utilisé pour votre compte Bewide. Nous vous enverrons un lien de réinitialisation.
+                Saisissez l'email utilisé pour votre compte MyClerck. Nous vous enverrons un lien de réinitialisation.
               </p>
             </div>
 
@@ -64,7 +64,7 @@ const ForgotPassword = () => {
                   <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
                   <Input
                     type="email"
-                    placeholder="email@bewide.com"
+                  placeholder="email@myclerk.app"
                     className="pl-10 h-11 rounded-xl bg-white/45 border border-white/50 shadow-inner shadow-white/30 dark:bg-white/5 dark:border-slate-800"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

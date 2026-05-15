@@ -49,7 +49,7 @@ const AddToHomeScreenPrompt = () => {
     }}>
       <SheetContent side="bottom" className="pb-[max(env(safe-area-inset-bottom),16px)]">
         <SheetHeader className="flex flex-row items-center justify-between">
-          <SheetTitle>Ajouter BeWide sur l’écran d’accueil</SheetTitle>
+          <SheetTitle>Ajouter MyClerck sur l’écran d’accueil</SheetTitle>
           <Button variant="ghost" size="icon" onClick={() => setOpen(false)} aria-label="Fermer">
             <X className="h-4 w-4" />
           </Button>

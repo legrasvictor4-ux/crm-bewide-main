@@ -12,7 +12,7 @@ export function useClients(params: FetchClientsParams) {
     queryFn: () => fetchClients(params),
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    retry: 2,
+    retry: 1,
   });
 }
 

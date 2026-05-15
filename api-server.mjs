@@ -25,6 +25,7 @@ import { createNotificationRouter } from './src/backend/notifications/router.js'
 import { appointmentRequestSchema, detectConflicts } from './src/backend/scheduling.js';
 import { planRequestSchema, planDay } from './src/backend/planning.js';
 import crypto from 'crypto';
+import { scoutAnalyze } from './src/backend/scoutService.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,10 +37,8 @@ const PORT = process.env.PORT || 3000;
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseKey =
   process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
   process.env.SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_ANON_KEY ||
-  process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  process.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.warn('[WARNING] Supabase credentials not found. Database operations will use in-memory fallback if enabled.');
@@ -1164,6 +1163,21 @@ app.use((err, req, res, next) => {
     error: err.message || 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
+});
+
+// ── Scout : Intelligence terrain IA ──────────────────────────────────────────
+app.post('/api/scout/analyze', async (req, res) => {
+  try {
+    const { imageBase64, lat, lng } = req.body;
+    if (!imageBase64) return res.status(400).json({ error: 'imageBase64 requis' });
+    if (!lat || !lng)  return res.status(400).json({ error: 'Coordonnées GPS (lat, lng) requises' });
+
+    const result = await scoutAnalyze({ imageBase64, lat: Number(lat), lng: Number(lng) });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('[Scout]', err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
 });
 
 // Start server

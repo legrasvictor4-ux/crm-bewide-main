@@ -36,11 +36,17 @@ const SignUp = () => {
           <div className="absolute inset-x-12 top-6 h-2 rounded-full bg-white/80 dark:bg-white/10 blur-[0.5px]" />
           <div className="px-9 pt-14 pb-12 space-y-7">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#5f6afc] to-[#7b8bff] shadow-lg shadow-[#5f6afc33]">
-                <span className="text-white text-lg font-semibold">BW</span>
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#9333ea] shadow-lg shadow-purple-500/30">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white">
+                  <path d="M50 6L57 13L66 9L71 18L81 17L83 27L93 31L91 42L99 50L91 58L93 69L83 73L81 83L71 82L66 91L57 87L50 94L43 87L34 91L29 82L19 83L17 73L7 69L9 58L1 50L9 42L7 31L17 27L19 17L29 18L34 9L43 13Z" fill="currentColor"/>
+                  <circle cx="36" cy="48" r="9" fill="white" fillOpacity="0.25"/>
+                  <circle cx="64" cy="48" r="9" fill="white" fillOpacity="0.25"/>
+                  <circle cx="38" cy="46" r="4" fill="white"/>
+                  <circle cx="66" cy="46" r="4" fill="white"/>
+                </svg>
               </div>
               <h1 className="text-2xl font-semibold text-foreground">Create your account</h1>
-              <p className="text-sm text-muted-foreground">Rejoignez Bewide pour votre prospection.</p>
+              <p className="text-sm text-muted-foreground">Rejoignez MyClerck pour votre prospection.</p>
             </div>
 
             <div className="space-y-3">
@@ -63,7 +69,7 @@ const SignUp = () => {
                   <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
                   <Input
                     type="email"
-                    placeholder="email@bewide.com"
+                    placeholder="email@myclerk.app"
                     className="pl-10 h-11 rounded-xl bg-white/45 border border-white/50 shadow-inner shadow-white/30 dark:bg-white/5 dark:border-slate-800"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}

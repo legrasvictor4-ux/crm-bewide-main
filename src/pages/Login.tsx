@@ -84,7 +84,7 @@ const Login = () => {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
-      const seen = window.localStorage.getItem("bewide_parallax_seen");
+      const seen = window.localStorage.getItem("myclerk_intro_seen");
       if (!seen) setShowParallax(true);
     } catch {
       // Si le stockage est bloqué, ne pas afficher le parallax pour éviter un crash
@@ -124,7 +124,7 @@ const Login = () => {
 
   const closeParallax = () => {
     try {
-      window.localStorage.setItem("bewide_parallax_seen", "1");
+      window.localStorage.setItem("myclerk_intro_seen", "1");
     } catch {
       // ignore si stockage indisponible
     }
@@ -137,14 +137,14 @@ const Login = () => {
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-md flex items-center justify-center px-6">
           <div
             ref={parallaxRef}
-            className="relative max-w-5xl w-full rounded-3xl border border-white/10 bg-gradient-to-br from-[#060c18] via-[#0b1224] to-[#050811] p-10 shadow-[0_30px_140px_-50px_rgba(59,130,246,0.7)] overflow-hidden"
+            className="relative w-full max-w-xl md:max-w-5xl rounded-3xl border border-white/10 bg-gradient-to-br from-[#060c18] via-[#0b1224] to-[#050811] p-6 md:p-10 shadow-[0_30px_140px_-50px_rgba(59,130,246,0.7)] overflow-hidden max-h-[80vh] md:max-h-none"
             style={{
               transform: "translate3d(var(--parallax-x,0px), var(--parallax-y,0px), 0)",
               transition: "transform 180ms ease-out",
             }}
           >
-            <div className="absolute -left-20 -top-28 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl" />
-            <div className="absolute -right-24 -bottom-36 h-80 w-80 rounded-full bg-purple-500/20 blur-3xl" />
+            <div className="absolute -left-16 -top-24 h-56 w-56 md:h-72 md:w-72 rounded-full bg-blue-500/20 blur-3xl" />
+            <div className="absolute -right-20 -bottom-28 h-64 w-64 md:h-80 md:w-80 rounded-full bg-purple-500/20 blur-3xl" />
             <button
               onClick={closeParallax}
               className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-blue-100 hover:bg-white/10 border border-white/10 transition"
@@ -153,12 +153,12 @@ const Login = () => {
               Passer
             </button>
             <div className="flex flex-col md:flex-row md:items-center gap-9 relative">
-              <div className="space-y-4 md:w-1/2">
+              <div className="space-y-4 md:w-1/2 max-h-[32vh] md:max-h-none overflow-y-auto pr-1">
                 <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-blue-100/90">
                   <Eye className="h-3.5 w-3.5" /> Garder un œil sur tout
                 </div>
                 <h2 className="text-3xl md:text-4xl font-bold text-white leading-tight">
-                  BeWide : le cockpit CRM qui voit ce que les autres ne voient pas.
+                  MyClerck : le cockpit CRM qui voit ce que les autres ne voient pas.
                 </h2>
                 <p className="text-sm text-blue-100/80 leading-relaxed max-w-xl">
                   Vue unifiée, IA vocale et scoring dynamique pour aligner prospection, carte terrain et actions rapides.
@@ -178,17 +178,17 @@ const Login = () => {
                 </div>
                 <div className="flex flex-wrap gap-3 pt-3">
                   <Button onClick={closeParallax} className="gap-2 shadow-lg shadow-blue-600/30">
-                    Entrer dans BeWide <ArrowRight className="h-4 w-4" />
+                    Entrer dans MyClerck <ArrowRight className="h-4 w-4" />
                   </Button>
                   <Button variant="outline" onClick={closeParallax} className="border-white/20 text-blue-100 hover:bg-white/10">
                     Voir le login
                   </Button>
                 </div>
               </div>
-              <div className="md:w-1/2 grid grid-cols-1 gap-4">
+              <div className="md:w-1/2 grid grid-cols-1 gap-4 max-h-[32vh] md:max-h-none overflow-y-auto pr-1">
                 <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-blue-600/40 via-blue-500/25 to-indigo-600/30 p-5 shadow-[0_20px_80px_-35px_rgba(59,130,246,0.9)]">
                   <div className="flex items-center justify-between text-white/90 text-sm font-semibold mb-3">
-                    <span>BeWide CRM</span>
+                    <span>MyClerck CRM</span>
                     <span className="text-emerald-200 text-xs">+26% productivité</span>
                   </div>
                   <div className="h-32 rounded-xl border border-white/10 bg-gradient-to-r from-white/10 via-white/5 to-transparent relative overflow-hidden">
@@ -242,11 +242,17 @@ const Login = () => {
           <div className="absolute inset-x-12 top-6 h-2 rounded-full bg-white/80 dark:bg-white/10 blur-[0.5px]" />
           <div className="px-9 pt-14 pb-12 space-y-7">
             <div className="text-center space-y-2">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#5f6afc] to-[#7b8bff] shadow-lg shadow-[#5f6afc33]">
-                <span className="text-white text-lg font-semibold">BW</span>
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#7c3aed] to-[#9333ea] shadow-lg shadow-purple-500/30">
+                <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-white">
+                  <path d="M50 6L57 13L66 9L71 18L81 17L83 27L93 31L91 42L99 50L91 58L93 69L83 73L81 83L71 82L66 91L57 87L50 94L43 87L34 91L29 82L19 83L17 73L7 69L9 58L1 50L9 42L7 31L17 27L19 17L29 18L34 9L43 13Z" fill="currentColor"/>
+                  <circle cx="36" cy="48" r="9" fill="white" fillOpacity="0.25"/>
+                  <circle cx="64" cy="48" r="9" fill="white" fillOpacity="0.25"/>
+                  <circle cx="38" cy="46" r="4" fill="white"/>
+                  <circle cx="66" cy="46" r="4" fill="white"/>
+                </svg>
               </div>
               <h1 className="text-2xl font-semibold text-foreground">Welcome Back!</h1>
-              <p className="text-sm text-muted-foreground">Connectez-vous à votre espace Bewide.</p>
+              <p className="text-sm text-muted-foreground">Connectez-vous à votre espace MyClerck.</p>
             </div>
 
             <div className="space-y-3">
@@ -256,7 +262,7 @@ const Login = () => {
                   <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
                   <Input
                     type="email"
-                    placeholder="email@bewide.com"
+                    placeholder="email@myclerk.app"
                     className="pl-10 h-11 rounded-xl bg-white/45 border border-white/50 shadow-inner shadow-white/30 dark:bg-white/5 dark:border-slate-800"
                     data-testid="login-email"
                     aria-label="Email"
@@ -315,7 +321,7 @@ const Login = () => {
               )}
               {error && <p className="text-sm text-destructive">{error}</p>}
               <Button
-                className="w-full h-11 rounded-xl bg-gradient-to-r from-[#5f6afc] to-[#7b8bff] text-white shadow-lg shadow-[#5f6afc44] backdrop-blur"
+                className="w-full h-11 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#9333ea] text-white shadow-lg shadow-purple-500/30 backdrop-blur"
                 disabled={loading}
                 data-testid="login-submit"
                 aria-label="Connexion"
@@ -325,7 +331,7 @@ const Login = () => {
               </Button>
               {otpSent && (
                 <Button
-                  className="w-full h-11 rounded-xl bg-gradient-to-r from-[#5f6afc] to-[#7b8bff] text-white shadow-lg shadow-[#5f6afc44] backdrop-blur"
+                  className="w-full h-11 rounded-xl bg-gradient-to-r from-[#7c3aed] to-[#9333ea] text-white shadow-lg shadow-purple-500/30 backdrop-blur"
                   disabled={loading}
                   data-testid="login-otp-submit"
                   aria-label="Connexion OTP"

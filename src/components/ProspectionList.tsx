@@ -233,7 +233,7 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
       )}
       {/* Header */}
       <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
           <h2 className="text-xl font-bold text-foreground">Prospections</h2>
           <Button onClick={() => setShowAddDialog(true)} size="sm" className="gap-2">
             <Plus className="h-4 w-4" />
@@ -304,18 +304,20 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {getStatusIcon(prospection.status)}
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-foreground text-lg mb-1 flex items-center gap-2 break-words whitespace-normal">
-                    {prospection.name}
+                  <div className="flex items-start gap-2 flex-wrap mb-1">
+                    <h3 className="font-semibold text-foreground text-lg leading-tight break-words whitespace-normal max-w-[240px] block">
+                      {prospection.name}
+                    </h3>
                     {prospection.lead_score !== undefined && prospection.lead_score !== null && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold leading-tight self-start">
                         Score {prospection.lead_score}
                       </span>
                     )}
-                  </h3>
+                  </div>
                   <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
                     <span className="flex items-center gap-1">
                       <MapPin className="h-4 w-4" />
-                      {prospection.arrondissement} arr.
+                      {prospection.arrondissement ? `${prospection.arrondissement} arr.` : prospection.city || "Adresse inconnue"}
                     </span>
                     {prospection.contact && (
                       <span className="flex items-center gap-1">
@@ -329,11 +331,18 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 shrink-0 self-start w-full sm:w-auto mt-2 sm:mt-0 justify-start sm:justify-end">
                 <Badge variant={getStatusVariant(prospection.status)}>
                   {getStatusLabel(prospection.status)}
                 </Badge>
-                <ClientRowActions />
+                <ClientRowActions
+                  clientId={prospection.id}
+                  clientName={prospection.name}
+                  onDeleted={() => {
+                    refetch();
+                    setSelectedProspection(null);
+                  }}
+                />
               </div>
             </div>
             {prospection.nextAction && (

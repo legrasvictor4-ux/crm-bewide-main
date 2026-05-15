@@ -25,7 +25,13 @@ const ContactsPage = () => {
       }
       toast.success("Contact enregistré");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Erreur inconnue");
+      const message =
+        error instanceof Error && error.message.toLowerCase().includes("fetch")
+          ? "Impossible de charger. Réessayer."
+          : error instanceof Error
+            ? error.message
+            : "Erreur inconnue";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -39,7 +45,13 @@ const ContactsPage = () => {
       if (!res.ok) throw new Error(payload.error || "Erreur lors du chargement des clients");
       setClients(payload.clients || payload.data || []);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Impossible de charger les clients");
+      const message =
+        err instanceof Error && err.message.toLowerCase().includes("fetch")
+          ? "Impossible de charger. Réessayer."
+          : err instanceof Error
+            ? err.message
+            : "Impossible de charger les clients";
+      toast.error(message);
     } finally {
       setLoadingList(false);
     }

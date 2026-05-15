@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc *)",
+      "Bash(dir /b /s \"c:\\\\Users\\\\jfleg\\\\AppData\\\\Local\\\\Temp\\\\*.png\")",
+      "Bash(findstr -i \"myclerk\\\\|logo\")",
+      "Bash(dir /b /s \"c:\\\\Users\\\\jfleg\\\\Downloads\\\\*.png\")",
+      "Bash(dir /b /s \"c:\\\\Users\\\\jfleg\\\\AppData\\\\Roaming\\\\Claude\\\\*.png\")",
+      "Bash(dir /b /s \"c:\\\\Users\\\\jfleg\\\\AppData\\\\Local\\\\Claude\\\\*.png\")",
+      "Bash(dir /b /s \"c:\\\\Users\\\\jfleg\\\\AppData\\\\\" /a:-d 2>nul | findstr /i \"\\\\.png\" | findstr /i \"myclerk\\\\|logo\\\\|image\" 2>nul | head -20)",
+      "Bash(node scripts/use-logo.js \"C:\\\\Users\\\\jfleg\\\\Desktop\\\\myclerk-logo.svg\")",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\\\\Downloads\" -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match \"\\\\.\\(png|svg|jpg|webp\\)\" } | Select-Object Name, LastWriteTime | Sort-Object LastWriteTime -Descending | Select-Object -First 10)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match \"\\\\.\\(png|svg\\)\" -and $_.Length -gt 10000 } | Sort-Object LastWriteTime -Descending | Select-Object -First 15 FullName, LastWriteTime, Length)",
+      "Bash(node -e ' *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\\\\AppData\\\\Local\\\\Temp\\\\claude\" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Extension -match \"\\\\.\\(png|jpg|jpeg|webp\\)\" } | Sort-Object LastWriteTime -Descending | Select-Object -First 10 FullName, Length, LastWriteTime)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\\\\AppData\\\\Roaming\\\\Code\" -Recurse -ErrorAction SilentlyContinue | Where-Object { $_.Name -match \"myclerk|logo\" } | Select-Object FullName | Select-Object -First 10)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'feat: animation splash + logo integre en base64 \\(persiste dans git\\) *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\\\\Nouveau dossier \\(3\\)\\\\crm-bewide-main\\\\public\\\\\" | Select-Object Name, @{N=\"Ko\";E={[math]::Round\\($_.Length/1024,1\\)}}, LastWriteTime)",
+      "Bash(git commit *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\jfleg\\\\Nouveau dossier \\(3\\)\\\\crm-bewide-main\" -Force)",
+      "Bash(Select-Object Name)",
+      "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\\\\Downloads\" | Where-Object { $_.Name -match \"crm-bewide\" } | Select-Object Name, FullName)",
+      "Bash(ls /mnt/c/Users/jfleg/Downloads/ 2>/dev/null | grep -i \"crm\\\\|google\\\\|bewide\\\\|vision\" || ls /mnt/c/Users/jfleg/Downloads/ 2>/dev/null | head -20)",
+      "Read(//mnt/c/Users/jfleg/**)",
+      "Bash(npm install *)"
+    ]
+  }
+}

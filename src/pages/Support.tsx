@@ -10,7 +10,7 @@ const Support = () => {
 
   const handleChatClick = () => {
     // Ouvre le chat dans un nouvel onglet; à remplacer par le widget officiel si disponible
-    window.open("https://app.bewide.ai/support/chat", "_blank", "noreferrer");
+    window.open("mailto:support@myclerk.app", "_blank", "noreferrer");
   };
 
   return (
@@ -21,7 +21,7 @@ const Support = () => {
             <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
               <LifeBuoy className="h-5 w-5" />
             </div>
-            <CardTitle className="text-2xl font-semibold">Contacter l’assistance Bewide</CardTitle>
+            <CardTitle className="text-2xl font-semibold">Contacter l’assistance MyClerck</CardTitle>
             <p className="text-sm text-muted-foreground">Décrivez votre problème ou votre demande, nous revenons vers vous rapidement.</p>
             <div className="flex justify-center">
               <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-sm">
@@ -37,7 +37,7 @@ const Support = () => {
               </div>
               <div className="space-y-1.5">
                 <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <Input type="email" placeholder="vous@bewide.com" />
+                <Input type="email" placeholder="vous@myclerk.app" />
               </div>
             </div>
             <div className="space-y-1.5">

@@ -22,6 +22,7 @@ import LogoutPage from "./pages/Logout";
 import SignUp from "./pages/SignUp";
 import Support from "./pages/Support";
 import ForgotPassword from "./pages/ForgotPassword";
+import Scout from "./pages/Scout";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
@@ -45,14 +46,13 @@ const PublicOnly = ({ children }: { children: JSX.Element }) => {
 
 const LayoutRoute = ({
   title,
-  breadcrumbs,
   children,
 }: {
   title: string;
-  breadcrumbs: { label: string; href?: string }[];
+  breadcrumbs?: { label: string; href?: string }[];
   children: JSX.Element;
 }) => (
-  <AppLayout title={title} breadcrumbs={breadcrumbs}>
+  <AppLayout title={title}>
     {children}
   </AppLayout>
 );
@@ -221,6 +221,16 @@ const App = () => {
                         breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "User management" }]}
                       >
                         <UsersPage />
+                      </LayoutRoute>
+                    </RequireAuth>
+                  }
+                />
+                <Route
+                  path="/scout"
+                  element={
+                    <RequireAuth>
+                      <LayoutRoute title="Scout IA" breadcrumbs={[{ label: "Dashboard", href: "/" }, { label: "Scout IA" }]}>
+                        <Scout />
                       </LayoutRoute>
                     </RequireAuth>
                   }

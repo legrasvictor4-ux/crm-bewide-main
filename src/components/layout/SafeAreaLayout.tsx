@@ -6,7 +6,7 @@ import type { PropsWithChildren } from "react";
  */
 const SafeAreaLayout = ({ children }: PropsWithChildren) => {
   return (
-    <div className="safe-area bg-background text-foreground min-h-screen flex flex-col">
+    <div className="safe-area-frame bg-background text-foreground min-h-screen flex flex-col">
       {children}
     </div>
   );

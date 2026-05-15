@@ -29,9 +29,9 @@ type UserRow = {
 };
 
 const initialUsers: UserRow[] = [
-  { id: "u-001", name: "Alice Martin", email: "alice@bewide.io", role: "admin", status: "active", region: "Île-de-France" },
-  { id: "u-002", name: "Bruno Lefèvre", email: "bruno@bewide.io", role: "manager", status: "active", region: "Auvergne-Rhône-Alpes" },
-  { id: "u-003", name: "Camille Dupont", email: "camille@bewide.io", role: "commercial", status: "invited", region: "Nouvelle-Aquitaine" },
+  { id: "u-001", name: "Alice Martin", email: "alice@myclerk.app", role: "admin", status: "active", region: "Île-de-France" },
+  { id: "u-002", name: "Bruno Lefèvre", email: "bruno@myclerk.app", role: "manager", status: "active", region: "Auvergne-Rhône-Alpes" },
+  { id: "u-003", name: "Camille Dupont", email: "camille@myclerk.app", role: "commercial", status: "invited", region: "Nouvelle-Aquitaine" },
 ];
 
 const roleLabel: Record<UserRole, string> = {
@@ -128,7 +128,7 @@ const UsersPage = () => {
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-                    placeholder="prenom.nom@bewide.io"
+                    placeholder="prenom.nom@myclerk.app"
                     required
                   />
                 </div>
