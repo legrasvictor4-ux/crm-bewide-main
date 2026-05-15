@@ -5,11 +5,13 @@
 
 import crypto from 'crypto';
 
-// ── Auth Google (Service Account JWT) ────────────────────────────────────────
+// ── Cache token Google (valide 55 min) ───────────────────────────────────────
+let _tokenCache = null;
 async function getGoogleToken(scope = 'https://www.googleapis.com/auth/cloud-vision') {
-  const email = process.env.GOOGLE_CLIENT_EMAIL;
-  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (_tokenCache && _tokenCache.exp > Date.now()) return _tokenCache.token;
 
+  const email  = process.env.GOOGLE_CLIENT_EMAIL;
+  const rawKey = process.env.GOOGLE_PRIVATE_KEY;
   if (!email || !rawKey) throw new Error('Clés Google Vision non configurées dans .env');
 
   const privateKey = rawKey.replace(/\\n/g, '\n').replace(/^"|"$/g, '');
@@ -25,19 +27,31 @@ async function getGoogleToken(scope = 'https://www.googleapis.com/auth/cloud-vis
   sign.update(`${header}.${payload}`);
   const sig = sign.sign(privateKey, 'base64url');
 
-  const jwt = `${header}.${payload}.${sig}`;
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
+  const res  = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
       grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
+      assertion:  `${header}.${payload}.${sig}`,
     }),
   });
   const data = await res.json();
   if (!data.access_token) throw new Error(`Google Auth failed: ${JSON.stringify(data)}`);
+
+  _tokenCache = { token: data.access_token, exp: Date.now() + 55 * 60 * 1000 };
   return data.access_token;
+}
+
+// ── Chemins non-profil à filtrer (réseaux sociaux) ───────────────────────────
+const SOCIAL_BLACKLIST = /^(p|reel|reels|explore|stories|tv|about|accounts|login|signup|share|direct|a|l|s|web|apps|ar|static|sharedfiles|hashtag|business|help|press|privacy|legal|legal-pages|ads|music|challenges|discover|embed|notifications|search|messages|campaigns|creator|collections|highlights|tagged|followers|following|saved|checkout|shop)$/i;
+
+function extractHandle(html, pattern) {
+  const matches = html.matchAll(pattern);
+  for (const m of matches) {
+    const handle = m[1]?.split('?')[0].split('/')[0];
+    if (handle && handle.length > 1 && !SOCIAL_BLACKLIST.test(handle)) return handle;
+  }
+  return null;
 }
 
 // ── Google Vision : OCR + Logo ────────────────────────────────────────────────
@@ -62,16 +76,22 @@ export async function visionAnalyze(imageBase64) {
   const data = await res.json();
   if (data.error) throw new Error(`Vision API: ${data.error.message}`);
 
-  const resp        = data.responses?.[0] ?? {};
-  const fullText    = resp.fullTextAnnotation?.text ?? resp.textAnnotations?.[0]?.description ?? '';
-  const logos       = (resp.logoAnnotations ?? []).map(l => l.description);
-  const labels      = (resp.labelAnnotations ?? []).map(l => l.description);
+  const resp = data.responses?.[0] ?? {};
+  // Vérifier les erreurs par-réponse
+  if (resp.error) throw new Error(`Vision API (réponse): ${resp.error.message}`);
 
-  // Nom du business = premier logo OU première ligne de texte propre
-  const firstLine   = fullText.split('\n').find(l => l.trim().length > 2) ?? '';
-  const businessName = logos[0] ?? firstLine;
+  const fullText = resp.fullTextAnnotation?.text ?? resp.textAnnotations?.[0]?.description ?? '';
+  const logos    = (resp.logoAnnotations ?? []).map(l => l.description);
 
-  return { fullText, businessName, logos, labels };
+  // Nom du business : premier logo détecté OU première ligne de texte propre (≥ 3 chars)
+  const firstLine    = fullText.split('\n').find(l => l.trim().length >= 3) ?? '';
+  const businessName = (logos[0] ?? firstLine).trim();
+
+  if (!businessName) {
+    throw new Error("Aucun texte lisible détecté. Rapprochez-vous de l'enseigne et réessayez.");
+  }
+
+  return { fullText, businessName, logos, labels: (resp.labelAnnotations ?? []).map(l => l.description) };
 }
 
 // ── Google Places : Matching business ────────────────────────────────────────
@@ -80,43 +100,51 @@ export async function findPlace(name, lat, lng) {
   if (!key) throw new Error('GOOGLE_MAPS_API_KEY manquant dans .env');
 
   const params = new URLSearchParams({
-    input:         name,
-    inputtype:     'textquery',
-    locationbias:  `circle:300@${lat},${lng}`,
-    fields:        'name,rating,user_ratings_total,formatted_address,website,formatted_phone_number,types,place_id',
+    input:        name,
+    inputtype:    'textquery',
+    locationbias: `circle:300@${lat},${lng}`,
+    fields:       'name,rating,user_ratings_total,formatted_address,website,formatted_phone_number,types,place_id',
     key,
   });
 
   const res  = await fetch(`https://maps.googleapis.com/maps/api/place/findplacefromtext/json?${params}`);
   const data = await res.json();
-
   if (data.status !== 'OK') return null;
   return data.candidates?.[0] ?? null;
 }
 
 // ── Google Places : Concurrents locaux ───────────────────────────────────────
-export async function findCompetitors(types, lat, lng) {
-  const key      = process.env.GOOGLE_MAPS_API_KEY;
-  const type     = types?.[0] ?? 'establishment';
-  const params   = new URLSearchParams({ location: `${lat},${lng}`, radius: '500', type, key });
-  const res      = await fetch(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params}`);
-  const data     = await res.json();
-  return (data.results ?? []).slice(0, 3).map(p => ({
-    name: p.name, rating: p.rating, reviews: p.user_ratings_total,
-  }));
+export async function findCompetitors(types, lat, lng, excludeName) {
+  const key  = process.env.GOOGLE_MAPS_API_KEY;
+  if (!key) return [];
+
+  // Utilise le vrai type du business ou fallback vers restaurant/establishment
+  const type   = types?.find(t => !['point_of_interest', 'establishment', 'food'].includes(t)) ?? types?.[0] ?? 'establishment';
+  const params = new URLSearchParams({ location: `${lat},${lng}`, radius: '500', type, key });
+
+  const res  = await fetch(`https://maps.googleapis.com/maps/api/place/nearbysearch/json?${params}`);
+  const data = await res.json();
+
+  return (data.results ?? [])
+    .filter(p => p.name?.toLowerCase() !== excludeName?.toLowerCase())  // exclure le business lui-même
+    .slice(0, 3)
+    .map(p => ({ name: p.name, rating: p.rating ?? 0, reviews: p.user_ratings_total ?? 0 }));
 }
 
 // ── Scrape liens sociaux depuis le site web ────────────────────────────────
 export async function extractSocialLinks(website) {
   if (!website) return {};
   try {
-    const res  = await fetch(website, { signal: AbortSignal.timeout(4000) });
+    const url = website.startsWith('http') ? website : `https://${website}`;
+    const res  = await fetch(url, {
+      signal:  AbortSignal.timeout(5000),
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; myclerk-scout/1.0)' },
+    });
     const html = await res.text();
-    const find = (pattern) => html.match(pattern)?.[1] ?? null;
     return {
-      instagram: find(/instagram\.com\/([A-Za-z0-9_.]+)/),
-      facebook:  find(/facebook\.com\/([A-Za-z0-9_.]+)/),
-      tiktok:    find(/tiktok\.com\/@([A-Za-z0-9_.]+)/),
+      instagram: extractHandle(html, /instagram\.com\/([A-Za-z0-9_.]{2,30})/g),
+      facebook:  extractHandle(html, /facebook\.com\/([A-Za-z0-9_.]{3,80})/g),
+      tiktok:    extractHandle(html, /tiktok\.com\/@([A-Za-z0-9_.]{2,30})/g),
     };
   } catch { return {}; }
 }
@@ -124,59 +152,59 @@ export async function extractSocialLinks(website) {
 // ── Claude : Génération intelligence commerciale ──────────────────────────────
 export async function generateIntelligence({ business, ocr, social, competitors }) {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('ANTHROPIC_API_KEY manquant dans .env');
+  if (!key) throw new Error('ANTHROPIC_API_KEY manquant dans .env — ajoute ta clé Anthropic');
 
-  const businessBlock = `
-Business : ${business?.name ?? ocr.businessName}
-Adresse : ${business?.formatted_address ?? 'inconnue'}
-Note Google : ${business?.rating ?? '?'}★ (${business?.user_ratings_total ?? '?'} avis)
-Site web : ${business?.website ?? 'absent'}
-Téléphone : ${business?.formatted_phone_number ?? 'absent'}`;
+  const name    = business?.name ?? ocr.businessName;
+  const rating  = business?.rating ?? null;
+  const reviews = business?.user_ratings_total ?? null;
+  const website = business?.website ?? null;
 
-  const socialBlock = `
-Réseaux sociaux détectés :
-- Instagram : ${social?.instagram ? `@${social.instagram}` : '❌ Absent ou introuvable'}
-- Facebook  : ${social?.facebook  ? `@${social.facebook}`  : '❌ Absent ou introuvable'}
-- TikTok    : ${social?.tiktok    ? `@${social.tiktok}`    : '❌ Absent ou introuvable'}
-- Site web  : ${business?.website ? '✅ Présent' : '❌ Absent'}`;
+  const socialLines = [
+    social?.instagram ? `Instagram @${social.instagram} détecté`     : 'Instagram : absent ou introuvable',
+    social?.facebook  ? `Facebook @${social.facebook} détecté`       : 'Facebook  : absent ou introuvable',
+    social?.tiktok    ? `TikTok @${social.tiktok} détecté`           : 'TikTok    : absent',
+    website           ? `Site web : présent (${website})`            : 'Site web  : absent',
+  ].join('\n');
 
-  const competitorBlock = competitors?.length
-    ? `\nConcurrents dans 500m :\n${competitors.map(c => `- ${c.name} : ${c.rating}★ (${c.reviews} avis)`).join('\n')}`
-    : '';
+  const competitorLines = competitors?.length
+    ? competitors.map(c => `- ${c.name} : ${c.rating}★ (${c.reviews} avis)`).join('\n')
+    : 'Aucun concurrent identifié dans 500m';
 
   const prompt = `Tu es un expert en prospection commerciale pour une agence de communication digitale.
 
-Un commercial vient de scanner ce business en marchant dans la rue :
-${businessBlock}
-${socialBlock}
-${competitorBlock}
+BUSINESS SCANNÉ :
+Nom : ${name}
+Adresse : ${business?.formatted_address ?? 'inconnue'}
+Note Google : ${rating ? `${rating}★ sur ${reviews?.toLocaleString()} avis` : 'non trouvée'}
+Téléphone : ${business?.formatted_phone_number ?? 'absent'}
 
-Génère une analyse commerciale complète en JSON avec cette structure exacte :
+PRÉSENCE DIGITALE :
+${socialLines}
+
+CONCURRENTS DANS 500M :
+${competitorLines}
+
+Génère une analyse commerciale JSON (UNIQUEMENT du JSON valide, sans markdown) :
 {
-  "score": <nombre 0-100 représentant l'opportunité commerciale>,
-  "verdict": "<phrase courte expliquant le score>",
-  "opportunities": ["<opportunité 1>", "<opportunité 2>", "<opportunité 3>"],
-  "weaknesses": ["<faiblesse détectée 1>", "<faiblesse détectée 2>"],
-  "pitch": "<pitch terrain de 3 phrases max, percutant, ancré dans les données réelles>",
+  "score": <0-100, opportunité commerciale — haut si bonne note Google + faible présence sociale>,
+  "verdict": "<une phrase percutante avec les vrais chiffres>",
+  "opportunities": ["<3 opportunités concrètes avec chiffres>"],
+  "weaknesses": ["<2 faiblesses digitales précises>"],
+  "pitch": "<3 phrases terrain, percutant, avec les vrais chiffres Google et réseaux>",
   "scripts": {
-    "call": "<script appel 90 secondes, naturel, avec les vrais chiffres>",
-    "dm": "<message DM Instagram 140 caractères max, accrocheur>",
+    "call": "<script appel 90s naturel mentionnant la note Google et les réseaux>",
+    "dm": "<DM Instagram ≤140 chars, accrocheur, avec un chiffre réel>",
     "email": {
-      "subject": "<objet email>",
-      "body": "<corps email court, 4 phrases max>"
+      "subject": "<objet accrocheur>",
+      "body": "<4 phrases max, avec chiffres réels>"
     }
   },
   "objections": [
-    { "objection": "<objection probable>", "reponse": "<réponse du commercial>" }
+    { "objection": "<objection réelle>", "reponse": "<réponse commerciale>"},
+    { "objection": "<objection réelle>", "reponse": "<réponse commerciale>"}
   ],
-  "closingScore": <nombre 1-10>
-}
-
-Règles :
-- Utilise les VRAIS chiffres (note, nombre d'avis, concurrents)
-- Sois précis et percutant, pas générique
-- Si le business a de bons avis Google mais peu de présence sociale = fort potentiel
-- Réponds UNIQUEMENT en JSON valide, sans markdown`;
+  "closingScore": <1-10>
+}`;
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -187,42 +215,54 @@ Règles :
     },
     body: JSON.stringify({
       model:      'claude-haiku-4-5-20251001',
-      max_tokens: 1500,
+      max_tokens: 1800,
       messages:   [{ role: 'user', content: prompt }],
     }),
   });
 
   const data = await res.json();
-  if (data.error) throw new Error(`Claude: ${data.error.message}`);
+  if (data.error) throw new Error(`Claude API: ${data.error.message}`);
 
   const raw = data.content?.[0]?.text ?? '{}';
   try {
     return JSON.parse(raw);
   } catch {
     const match = raw.match(/\{[\s\S]*\}/);
-    return match ? JSON.parse(match[0]) : { score: 0, verdict: 'Analyse indisponible', opportunities: [], pitch: raw };
+    if (match) {
+      try { return JSON.parse(match[0]); } catch { /* continue */ }
+    }
+    return {
+      score: 50, verdict: 'Analyse partielle disponible',
+      opportunities: ['Présence digitale à améliorer'],
+      weaknesses: ['Données insuffisantes'],
+      pitch: raw.slice(0, 200),
+      scripts: { call: '', dm: '', email: { subject: '', body: '' } },
+      objections: [],
+      closingScore: 5,
+    };
   }
 }
 
 // ── Pipeline complet Scout ────────────────────────────────────────────────────
 export async function scoutAnalyze({ imageBase64, lat, lng }) {
-  // Étape 1 : Vision
+  // 1. OCR Vision
   const ocr = await visionAnalyze(imageBase64);
 
-  // Étapes 2-4 : Places + Social + Concurrents (en parallèle)
-  const [business, competitors] = await Promise.all([
-    findPlace(ocr.businessName, lat, lng).catch(() => null),
-    findCompetitors(null, lat, lng).catch(() => []),
+  // 2. Matching business (bloquant — on a besoin des types pour les concurrents)
+  const business = await findPlace(ocr.businessName, lat, lng).catch(() => null);
+
+  // 3. Concurrents + Social en parallèle (maintenant qu'on a le type du business)
+  const [competitors, social] = await Promise.all([
+    findCompetitors(business?.types ?? null, lat, lng, business?.name ?? ocr.businessName).catch(() => []),
+    extractSocialLinks(business?.website).catch(() => ({})),
   ]);
 
-  const social = await extractSocialLinks(business?.website).catch(() => ({}));
-
-  // Étape 5 : Claude génère l'intelligence
+  // 4. Intelligence Claude
   const intelligence = await generateIntelligence({ business, ocr, social, competitors });
 
   return {
-    ocr:          { text: ocr.fullText, businessName: ocr.businessName },
-    business:     business ?? { name: ocr.businessName },
+    ocr:         { text: ocr.fullText, businessName: ocr.businessName },
+    business:    business ?? { name: ocr.businessName },
     social,
     competitors,
     intelligence,

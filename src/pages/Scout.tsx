@@ -35,7 +35,7 @@ function scoreColor(s: number) {
 
 function ScoreRing({ score }: { score: number }) {
   const r = 36, c = 2 * Math.PI * r;
-  const dash = (score / 100) * c;
+  const dash = ((score ?? 0) / 100) * c;
   const color = scoreColor(score);
   return (
     <div className="relative flex items-center justify-center w-24 h-24">
@@ -81,6 +81,34 @@ export default function Scout() {
     onError:   (e: Error) => toast.error(e.message),
   });
 
+  // ── Compression image avant envoi (évite les timeouts sur photos mobiles 5MB) ─
+  const compressImage = (file: File, maxPx = 1200, quality = 0.82): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement("canvas");
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { reject(new Error("Compression échouée")); return; }
+            const reader = new FileReader();
+            reader.onload = () => resolve((reader.result as string).split(",")[1]);
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          },
+          "image/jpeg",
+          quality,
+        );
+      };
+      img.onerror = reject;
+      img.src = url;
+    });
+
   // ── Capture photo ─────────────────────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
     setPhase("loading");
@@ -88,34 +116,46 @@ export default function Scout() {
     setError("");
     setAdded(false);
 
-    // GPS
+    // GPS avec timeout 6s puis fallback Paris
     const gps = await new Promise<{ lat: number; lng: number }>((resolve) => {
+      const fallback = () => resolve({ lat: 48.8566, lng: 2.3522 });
+      const timer = setTimeout(fallback, 6000);
       navigator.geolocation?.getCurrentPosition(
-        (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude }),
-        ()  => resolve({ lat: 48.8566, lng: 2.3522 }), // Paris fallback
+        (p) => { clearTimeout(timer); resolve({ lat: p.coords.latitude, lng: p.coords.longitude }); },
+        ()  => { clearTimeout(timer); fallback(); },
+        { timeout: 5000, maximumAge: 30000 },
       );
-    });
-
-    // Image → base64
-    const b64 = await new Promise<string>((res, rej) => {
-      const reader = new FileReader();
-      reader.onload = () => res((reader.result as string).split(",")[1]);
-      reader.onerror = rej;
-      reader.readAsDataURL(file);
+      if (!navigator.geolocation) fallback();
     });
 
     try {
-      const resp = await fetch("/api/scout/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageBase64: b64, lat: gps.lat, lng: gps.lng }),
-      });
+      // Compression image (photos mobiles peuvent faire 5MB+ → timeout sinon)
+      const b64 = await compressImage(file);
+
+      // Fetch avec timeout 45s
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 45000);
+      let resp: Response;
+      try {
+        resp = await fetch("/api/scout/analyze", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ imageBase64: b64, lat: gps.lat, lng: gps.lng }),
+          signal:  ctrl.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
+
       const data = await resp.json();
       if (!data.success) throw new Error(data.error ?? "Erreur inconnue");
       setResult(data as ScoutResult);
       setPhase("result");
     } catch (e: any) {
-      setError(e.message ?? "Analyse échouée");
+      const msg = e.name === "AbortError"
+        ? "Délai dépassé (45s). Vérifiez votre connexion et réessayez."
+        : (e.message ?? "Analyse échouée");
+      setError(msg);
       setPhase("error");
     }
   }, []);
