@@ -1,25 +1,17 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { formatDistanceToNow, subDays } from "date-fns";
-import { fr } from "date-fns/locale";
 import TopNav from "./TopNav";
 import SidebarNav from "./SidebarNav";
-import RightPanel from "./RightPanel";
 import SafeAreaLayout from "./SafeAreaLayout";
 import NativeShell from "./NativeShell";
 import { useKeyboardInsets } from "@/hooks/useKeyboardInsets";
 import AddToHomeScreenPrompt from "../pwa/AddToHomeScreenPrompt";
-
-interface Breadcrumb {
-  label: string;
-  href?: string;
-}
+import { Bell } from "lucide-react";
 
 interface AppLayoutProps {
   title?: string;
-  breadcrumbs?: Breadcrumb[];
-  rightPanel?: React.ReactNode;
+  breadcrumbs?: { label: string; href?: string }[];
   children: React.ReactNode;
 }
 
@@ -28,160 +20,118 @@ interface NotificationItem {
   title: string;
   detail?: string;
   action?: string;
-  at?: Date | null;
 }
 
-const AppLayout = ({ title, breadcrumbs = [], rightPanel, children }: AppLayoutProps) => {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [showNotificationPanel, setShowNotificationPanel] = useState(false);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
-  const [loadingNotifications, setLoadingNotifications] = useState(false);
-  const [notificationsError, setNotificationsError] = useState<string | null>(null);
+export default function AppLayout({ title, children }: AppLayoutProps) {
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [notifOpen,     setNotifOpen]     = useState(false);
+  const [notifs,        setNotifs]        = useState<NotificationItem[]>([]);
+  const [notifLoading,  setNotifLoading]  = useState(false);
+  const [notifError,    setNotifError]    = useState<string | null>(null);
   const navigate = useNavigate();
   useKeyboardInsets();
 
-  const formatRelative = (date: Date) =>
-    formatDistanceToNow(date, { addSuffix: true, locale: fr });
-
-  const areNotificationsEnabled = () => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("notifications_enabled");
-    // Seuls les "false" explicites bloquent l'ouverture
-    return stored === null || stored.trim().toLowerCase() !== "false";
-  };
-
-  const isDailySummaryEnabled = () => {
-    if (typeof window === "undefined") return false;
-    const stored = localStorage.getItem("notifications_summary_enabled");
-    // Seuls les "false" explicites bloquent l'ouverture
-    return stored === null || stored.trim().toLowerCase() !== "false";
-  };
+  const notificationsEnabled = () => localStorage.getItem("notifications_enabled") !== "false";
+  const summaryEnabled       = () => localStorage.getItem("notifications_summary_enabled") !== "false";
 
   useEffect(() => {
-    const loadNotifications = async () => {
-      setLoadingNotifications(true);
-      setNotificationsError(null);
-      try {
-        const res = await fetch("/api/notifications/daily");
-        const payload = await res.json();
-        if (!res.ok || !payload.success) throw new Error(payload.error || "Erreur notifications");
-        const mapped = (payload.notifications || []).map((n: any, idx: number) => ({
-          id: `${n.lead_id || "none"}-${n.category}-${idx}`,
-          title: n.title,
+    if (!notifOpen) return;
+    setNotifLoading(true);
+    setNotifError(null);
+    fetch("/api/notifications/daily")
+      .then(r => r.json())
+      .then(p => {
+        if (!p.success) throw new Error(p.error ?? "Erreur notifications");
+        setNotifs((p.notifications ?? []).map((n: any, i: number) => ({
+          id:     `${n.lead_id ?? "x"}-${i}`,
+          title:  n.title,
           detail: n.body,
           action: n.action,
-          at: null,
-        }));
-        setNotifications(mapped);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Impossible de charger les notifications";
-        setNotificationsError(message);
-      } finally {
-        setLoadingNotifications(false);
-      }
-    };
+        })));
+      })
+      .catch(e => setNotifError(e.message))
+      .finally(() => setNotifLoading(false));
+  }, [notifOpen]);
 
-    if (showNotificationPanel) {
-      void loadNotifications();
+  const handleNotif = () => {
+    if (!notificationsEnabled()) {
+      toast.message("Activez vos notifications", { description: "Paramètres > Notifications." });
+      navigate("/settings#notifications");
+      return;
     }
-  }, [showNotificationPanel]);
+    if (!summaryEnabled()) {
+      toast.message("Activez le résumé quotidien", { description: "Paramètres > Notifications." });
+      navigate("/settings#notifications");
+      return;
+    }
+    setNotifOpen(v => !v);
+  };
 
   return (
     <SafeAreaLayout>
-      <div className="min-h-screen bg-background text-foreground flex flex-col">
-      <TopNav
-        title={title}
-        breadcrumbs={breadcrumbs}
-        onToggleSidebar={() => setIsSidebarOpen((s) => !s)}
-        onToggleMobileMenu={() => setIsMobileMenuOpen((s) => !s)}
-        isMobileMenuOpen={isMobileMenuOpen}
-        onNotificationsClick={() => {
-          const enabled = areNotificationsEnabled();
-          const summaryEnabled = isDailySummaryEnabled();
+      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
+      <SidebarNav isOpen={mobileSidebar} onClose={() => setMobileSidebar(false)} />
 
-          if (!enabled) {
-            toast.message("Activez vos notifications", {
-              description: "Activez les notifications dans Paramètres > Notifications.",
-            });
-            navigate("/settings#notifications");
-            return;
-          }
+      {/* ── Layout principal ─────────────────────────────────────────────── */}
+      <div className="min-h-screen bg-background flex flex-col lg:ml-[252px]">
 
-          if (!summaryEnabled) {
-            toast.message("Activez le résumé quotidien", {
-              description: "Activez le résumé pour afficher vos dernières notifications.",
-            });
-            navigate("/settings#notifications");
-            return;
-          }
-
-          setShowNotificationPanel((isOpen) => !isOpen);
-        }}
-        onProfileClick={() => navigate("/settings")}
-      />
-      <div className="flex flex-1 overflow-hidden">
-        <SidebarNav
-          isOpen={isSidebarOpen}
-          isMobileOpen={isMobileMenuOpen}
-          onCloseMobile={() => setIsMobileMenuOpen(false)}
+        {/* Header */}
+        <TopNav
+          title={title}
+          onToggleSidebar={() => setMobileSidebar(s => !s)}
+          onNotificationsClick={handleNotif}
         />
+
+        {/* Contenu */}
         <main
-          className="flex-1 overflow-y-auto pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+          className="flex-1 overflow-y-auto pb-[calc(var(--tabbar-height)+var(--safe-bottom)+16px)] lg:pb-8"
           role="main"
-          aria-label={title || "Contenu principal"}
-          tabIndex={0}
+          aria-label={title ?? "Contenu principal"}
         >
-          <div className="page-shell py-6 space-y-6">
+          <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6 space-y-5">
             {children}
-            {showNotificationPanel && (
-              <div className="fixed right-4 top-20 z-40 w-[min(90vw,320px)] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/70 bg-card/95 shadow-lg backdrop-blur-md">
-                <div className="px-4 py-3 border-b border-border/70 flex items-center justify-between">
-                  <span className="text-sm font-semibold">Notifications récentes</span>
-                  <button
-                    className="text-xs text-muted-foreground hover:text-foreground"
-                    onClick={() => setShowNotificationPanel(false)}
-                  >
-                    Fermer
-                  </button>
-                </div>
-                <div className="p-4 space-y-3 text-sm">
-                  {loadingNotifications && (
-                    <div className="text-muted-foreground text-sm">Chargement des notifications...</div>
-                  )}
-                  {notificationsError && !loadingNotifications && (
-                    <div className="text-destructive text-sm">{notificationsError}</div>
-                  )}
-                  {!loadingNotifications && !notificationsError && notifications.length === 0 && (
-                    <div className="text-muted-foreground text-sm">
-                      Aucune notification recente sur les 14 derniers jours.
-                    </div>
-                  )}
-                    {!loadingNotifications &&
-                      !notificationsError &&
-                      notifications.map((notif) => (
-                        <div key={notif.id} className="rounded-lg border border-border/60 px-3 py-2 bg-card/80 space-y-1">
-                          <p className="font-medium text-foreground">{notif.title}</p>
-                          {notif.detail && <p className="text-xs text-muted-foreground">{notif.detail}</p>}
-                          {notif.action && (
-                            <p className="text-[11px] text-primary font-medium">
-                              Action : {notif.action}
-                            </p>
-                          )}
-                        </div>
-                      ))}
-                </div>
-              </div>
-            )}
           </div>
+
+          {/* Panneau notifications */}
+          {notifOpen && (
+            <div
+              className="fixed right-4 top-[66px] z-40 w-[min(92vw,340px)] max-h-[70vh] overflow-y-auto
+                         rounded-2xl border border-black/[0.08] bg-white shadow-xl"
+            >
+              <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06]">
+                <div className="flex items-center gap-2 text-sm font-semibold text-[#1a1a2e]">
+                  <Bell className="h-4 w-4" />
+                  Notifications
+                </div>
+                <button
+                  onClick={() => setNotifOpen(false)}
+                  className="text-xs text-[#1a1a2e]/40 hover:text-[#1a1a2e] transition"
+                >
+                  Fermer
+                </button>
+              </div>
+
+              <div className="p-4 space-y-3 text-sm">
+                {notifLoading && <p className="text-[#1a1a2e]/40">Chargement…</p>}
+                {notifError && !notifLoading && <p className="text-red-500">{notifError}</p>}
+                {!notifLoading && !notifError && notifs.length === 0 && (
+                  <p className="text-[#1a1a2e]/40 text-sm">Aucune notification récente.</p>
+                )}
+                {!notifLoading && !notifError && notifs.map(n => (
+                  <div key={n.id} className="rounded-xl border border-black/[0.06] px-3 py-2.5 bg-[#1a1a2e]/[0.02] space-y-0.5">
+                    <p className="font-medium text-[#1a1a2e]">{n.title}</p>
+                    {n.detail && <p className="text-xs text-[#1a1a2e]/50">{n.detail}</p>}
+                    {n.action && <p className="text-[11px] text-[#1a1a2e] font-medium">→ {n.action}</p>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </main>
-        {rightPanel && <RightPanel>{rightPanel}</RightPanel>}
       </div>
-      </div>
+
       <NativeShell />
       <AddToHomeScreenPrompt />
     </SafeAreaLayout>
   );
-};
-
-export default AppLayout;
+}
