@@ -1,12 +1,4 @@
-// Safe dotenv loader for ESM; wrapped to avoid hard crashes if missing in production
-if (!process.env.DISABLE_DOTENV) {
-  try {
-    const dotenv = await import('dotenv');
-    dotenv.config();
-  } catch (err) {
-    console.warn('[WARN] dotenv not installed or failed to load. Proceeding with process env only.');
-  }
-}
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
@@ -31,8 +23,12 @@ import { detectProximateAppointments } from './src/backend/agenda/proximityEngin
 import { storeSuggestions, getPendingSuggestions, acceptSuggestion, declineSuggestion, clearStaleSuggestions } from './src/backend/agenda/suggestionStore.js';
 import { enqueue, getPendingOps, getFailedOps, getQueueStats, markCompleted, markFailed, generateOpId } from './src/backend/agenda/syncQueue.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = typeof __filename !== 'undefined'
+  ? __filename
+  : fileURLToPath(import.meta.url);
+const __dirname = typeof __dirname !== 'undefined'
+  ? __dirname
+  : path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
