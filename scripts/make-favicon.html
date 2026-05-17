@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Générateur de favicon — myclerk</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 520px; margin: 60px auto; padding: 0 24px; color: #111; }
+    h1 { font-size: 20px; margin-bottom: 4px; }
+    p  { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .drop {
+      border: 2px dashed #ccc; border-radius: 12px; padding: 40px;
+      text-align: center; cursor: pointer; color: #888; font-size: 14px;
+      transition: border-color .2s, background .2s;
+    }
+    .drop:hover, .drop.over { border-color: #6366f1; background: #f5f3ff; color: #6366f1; }
+    input[type=file] { display: none; }
+    canvas { display: none; }
+    .results { display: none; margin-top: 24px; }
+    .results h2 { font-size: 15px; margin-bottom: 12px; }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .card {
+      border: 1px solid #e5e5e5; border-radius: 10px; padding: 16px;
+      text-align: center; background: #fafafa;
+    }
+    .card img { display: block; margin: 0 auto 8px; image-rendering: pixelated; }
+    .card span { font-size: 11px; color: #666; display: block; margin-bottom: 8px; }
+    .btn {
+      display: inline-block; background: #6366f1; color: white; border: none;
+      border-radius: 8px; padding: 8px 14px; font-size: 12px; cursor: pointer;
+      text-decoration: none; width: 100%; box-sizing: border-box;
+    }
+    .btn:hover { background: #4f46e5; }
+    .note {
+      margin-top: 20px; padding: 14px; background: #f0fdf4; border-radius: 8px;
+      font-size: 13px; color: #166534; border: 1px solid #bbf7d0;
+    }
+    .preview-row { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+    .preview-box { border: 1px solid #e5e5e5; border-radius: 8px; padding: 12px; background: white; }
+  </style>
+</head>
+<body>
+
+<h1>Générateur de favicon myclerk</h1>
+<p>Glisse ton logo ici (PNG recommandé) — le script recadre l'icône et génère les 3 tailles automatiquement.</p>
+
+<div class="drop" id="drop">
+  <div style="font-size: 32px; margin-bottom: 8px;">🖼</div>
+  Glisse une image ici<br>ou <label for="fileInput" style="color:#6366f1;cursor:pointer;text-decoration:underline">clique pour choisir un fichier</label>
+  <input type="file" id="fileInput" accept="image/*" />
+</div>
+
+<canvas id="c32"></canvas>
+<canvas id="c180"></canvas>
+<canvas id="c192"></canvas>
+
+<div class="results" id="results">
+  <div class="preview-row" id="previewRow"></div>
+  <h2>Télécharge et place ces fichiers dans <code>public/</code></h2>
+  <div class="grid" id="grid"></div>
+  <div class="note">
+    <strong>Après avoir mis les fichiers dans <code>public/</code></strong>, ajoute ceci dans ton <code>index.html</code> entre les balises <code>&lt;head&gt;</code> :<br><br>
+    <code>
+      &lt;link rel="icon" type="image/png" sizes="32x32" href="/favicon.png" /&gt;<br>
+      &lt;link rel="apple-touch-icon" href="/apple-touch-icon.png" /&gt;
+    </code>
+  </div>
+</div>
+
+<script>
+  const drop = document.getElementById('drop');
+  const fileInput = document.getElementById('fileInput');
+
+  drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+  drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); handle(e.dataTransfer.files[0]); });
+  drop.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => handle(e.target.files[0]));
+
+  function handle(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => process(e.target.result);
+    reader.readAsDataURL(file);
+  }
+
+  function process(src) {
+    const img = new Image();
+    img.onload = () => {
+      // Recadre un carré depuis la gauche (partie icône)
+      const sq = Math.min(img.height, img.width * 0.35); // ~35% de la largeur = zone icône
+      const sizes = [
+        { id: 'c32',  size: 32,  name: 'favicon.png',          label: '32×32 — Onglet navigateur' },
+        { id: 'c180', size: 180, name: 'apple-touch-icon.png', label: '180×180 — iOS Safari' },
+        { id: 'c192', size: 192, name: 'icon-192.png',         label: '192×192 — Android PWA' },
+      ];
+
+      // Aperçu
+      const pr = document.getElementById('previewRow');
+      pr.innerHTML = '<strong style="font-size:13px">Aperçu icône :</strong>';
+
+      sizes.forEach(({ id, size, name, label }) => {
+        const canvas = document.getElementById(id);
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, size, size);
+        // Fond transparent
+        ctx.drawImage(img, 0, 0, sq, img.height, 0, 0, size, size);
+
+        const url = canvas.toDataURL('image/png');
+
+        // Aperçu petit
+        if (size === 32) {
+          const box = document.createElement('div');
+          box.className = 'preview-box';
+          const i = document.createElement('img');
+          i.src = url; i.width = 64; i.height = 64;
+          i.style.imageRendering = 'pixelated';
+          box.appendChild(i);
+          pr.appendChild(box);
+        }
+
+        // Carte de téléchargement
+        const grid = document.getElementById('grid');
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const preview = document.createElement('img');
+        preview.src = url;
+        preview.width = size > 64 ? 64 : size;
+        preview.height = size > 64 ? 64 : size;
+        preview.style.imageRendering = 'pixelated';
+
+        const lbl = document.createElement('span');
+        lbl.textContent = label;
+
+        const btn = document.createElement('a');
+        btn.href = url;
+        btn.download = name;
+        btn.className = 'btn';
+        btn.textContent = `⬇ ${name}`;
+
+        card.appendChild(preview);
+        card.appendChild(lbl);
+        card.appendChild(btn);
+        grid.appendChild(card);
+      });
+
+      document.getElementById('results').style.display = 'block';
+    };
+    img.src = src;
+  }
+</script>
+</body>
+</html>

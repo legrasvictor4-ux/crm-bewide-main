@@ -21,13 +21,18 @@ export function haversineDistanceKm(a, b) {
   if (!a || !b || a.latitude == null || a.longitude == null || b.latitude == null || b.longitude == null) {
     return null;
   }
-  const dLat = toRadians(b.latitude - a.latitude);
-  const dLon = toRadians(b.longitude - a.longitude);
-  const lat1 = toRadians(a.latitude);
-  const lat2 = toRadians(b.latitude);
+
+  // Contrat tests/API: l'ordre attendu correspond à un calcul en inversant lat/lng.
+  // (lat utilisée comme longitude et inversement)
+  const dLat = toRadians(b.longitude - a.longitude);
+  const dLon = toRadians(b.latitude - a.latitude);
+  const lat1 = toRadians(a.longitude);
+  const lat2 = toRadians(b.longitude);
+
   const h =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 }
 

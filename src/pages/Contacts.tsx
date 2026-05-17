@@ -101,9 +101,9 @@ const ContactsPage = () => {
                     <tr key={client.company + client.primaryContact?.email} className="border-t border-border/50">
                       <td className="py-2">{client.company}</td>
                       <td className="py-2 capitalize text-muted-foreground">{client.status}</td>
-                      <td className="py-2">{client.opportunityScore ?? client["lead_score"] ?? "-"}</td>
+                      <td className="py-2">{client.opportunityScore ?? (client as Record<string, unknown>)["lead_score"] ?? "-"}</td>
                       <td className="py-2">
-                        {client.primaryContact?.name} {client.primaryContact?.email ? `(${client.primaryContact.email})` : ""}
+                        {client.primaryContact?.name ?? (client as Record<string, unknown>).contact ?? "—"}
                       </td>
                     </tr>
                   ))}

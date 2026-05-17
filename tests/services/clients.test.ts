@@ -5,7 +5,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { from: vi.fn() } as unknown as SupabaseClient,
+  supabase: { from: vi.fn(), auth: {} } as unknown as SupabaseClient,
+  isSupabaseReady: true,
 }));
 
 const sampleClient: Client = {
@@ -17,14 +18,13 @@ const sampleClient: Client = {
   company: "ACME",
   address: "123 St",
   postal_code: "75000",
-  city: "Paris",
   arrondissement: "1",
   contact: "John",
-  status: "new",
+  status: "prospect",
   notes: null,
   next_action: null,
-  date_created: "2024-01-01",
-  date_updated: "2024-01-02",
+  date_created: "2024-01-01T00:00:00.000Z",
+  date_updated: "2024-01-02T00:00:00.000Z",
   imported_at: null,
   source_file: null,
   enrichment_data: null,

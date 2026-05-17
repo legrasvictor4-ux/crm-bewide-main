@@ -18,15 +18,7 @@ body {
   margin: 0;
 }
 
-img,
-picture,
-video,
-canvas,
-svg {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
+/* NOTE: dans @layer base pour que les classes Tailwind (h-[x]) puissent l'écraser */
 
 input,
 button,
@@ -36,6 +28,12 @@ select {
 }
 
 @layer base {
+  img, picture, video, canvas, svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
   :root {
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
@@ -50,7 +48,7 @@ select {
     --radius-lg: 18px;
     --button-height-primary: 48px;
     --button-height-secondary: 44px;
-    --tabbar-height: 68px;
+    --tabbar-height: 60px;
 
     /* ── myclerk brand colors ── */
     --background: 220 20% 97%;      /* #F4F5F8 fond gris très clair */
@@ -428,6 +426,15 @@ select {
   box-shadow: inset 0 0 0 1px hsla(0, 0%, 100%, 0.04);
   z-index: 4;
   margin: 0 var(--space-1);
+}
+
+/* Masquer la scrollbar horizontale des filtres */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Scrollbar styling */

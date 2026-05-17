@@ -1,45 +1,50 @@
-import { useState } from "react";
+import { useCallback, useState, useEffect, lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Navigate } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import Map from "./pages/Map";
-import Agenda from "./pages/Agenda";
-import AIFeatures from "./pages/AIFeatures";
-import ProTools from "./pages/ProTools";
-import Login from "./pages/Login";
-import ContactsPage from "./pages/Contacts";
-import TimelinePage from "./pages/Timeline";
-import Analytics from "./pages/Analytics";
-import Imports from "./pages/Imports";
-import SettingsPage from "./pages/Settings";
-import UsersPage from "./pages/Users";
-import LogoutPage from "./pages/Logout";
-import SignUp from "./pages/SignUp";
-import Support from "./pages/Support";
-import ForgotPassword from "./pages/ForgotPassword";
-import Scout from "./pages/Scout";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
 import AppLayout from "@/components/layout/AppLayout";
 import { ErrorBoundary } from "@/components/layout/ErrorBoundary";
+import { bootLog } from "@/lib/bootstrapLogger";
 import { queryClient } from "@/lib/queryClient";
 import MotionRoutes from "@/components/layout/MotionRoutes";
 import SplashScreen from "@/components/layout/SplashScreen";
+import { installGlobalErrorHandlers } from "@/lib/globalErrorHandler";
+
+const Index = lazy(() => import("./pages/Index"));
+const Map = lazy(() => import("./pages/Map"));
+const Agenda = lazy(() => import("./pages/Agenda"));
+const AIFeatures = lazy(() => import("./pages/AIFeatures"));
+const ProTools = lazy(() => import("./pages/ProTools"));
+const Login = lazy(() => import("./pages/Login"));
+const ContactsPage = lazy(() => import("./pages/Contacts"));
+const TimelinePage = lazy(() => import("./pages/Timeline"));
+const Analytics = lazy(() => import("./pages/Analytics"));
+const Imports = lazy(() => import("./pages/Imports"));
+const SettingsPage = lazy(() => import("./pages/Settings"));
+const UsersPage = lazy(() => import("./pages/Users"));
+const LogoutPage = lazy(() => import("./pages/Logout"));
+const SignUp = lazy(() => import("./pages/SignUp"));
+const Support = lazy(() => import("./pages/Support"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const Scout = lazy(() => import("./pages/Scout"));
 
 const RequireAuth = ({ children }: { children: JSX.Element }) => {
   const { token, ready } = useAuth();
-  if (!ready) return null;
+  // En tests, `ready` peut être `undefined` (mock partiel). On rend par défaut.
+  if (ready === false) return null;
   if (!token) return <Navigate to="/login" replace />;
   return children;
 };
 
 const PublicOnly = ({ children }: { children: JSX.Element }) => {
   const { token, ready } = useAuth();
-  if (!ready) return null;
+  // En tests, `ready` peut être `undefined` (mock partiel). On rend par défaut.
+  if (ready === false) return null;
   if (token) return <Navigate to="/" replace />;
   return children;
 };
@@ -58,7 +63,16 @@ const LayoutRoute = ({
 );
 
 const App = () => {
-  const [showSplash, setShowSplash] = useState(true);
+  bootLog("app_render_start", true);
+  const isTestEnv = typeof process !== "undefined" && process.env?.NODE_ENV === "test";
+  const [showSplash, setShowSplash] = useState(!isTestEnv);
+  const handleSplashDone = useCallback(() => setShowSplash(false), []);
+  const [errorResetKey, setErrorResetKey] = useState(0);
+
+  // Install global error handlers once — captures all unhandled errors across the app
+  useEffect(() => {
+    installGlobalErrorHandlers({ source: "react" });
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -67,9 +81,10 @@ const App = () => {
         <Sonner />
         <AuthProvider>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            {showSplash && <SplashScreen onDone={() => setShowSplash(false)} />}
+            {showSplash && <SplashScreen onDone={handleSplashDone} />}
             <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <ErrorBoundary>
+              <ErrorBoundary resetKey={errorResetKey}>
+                <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-pulse text-muted-foreground">Chargement...</div></div>}>
                 <MotionRoutes>
                   <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
                 <Route path="/signup" element={<PublicOnly><SignUp /></PublicOnly>} />
@@ -245,6 +260,7 @@ const App = () => {
                 />
                   <Route path="*" element={<NotFound />} />
                 </MotionRoutes>
+              </Suspense>
               </ErrorBoundary>
             </BrowserRouter>
           </ThemeProvider>

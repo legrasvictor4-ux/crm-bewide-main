@@ -8,6 +8,10 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "next-themes";
+import { useGoogleSync } from "@/hooks/useGoogleSync";
+import { updateCalendarSettings, getCalendarSettings } from "@/services/agenda";
+import type { CalendarSettings } from "@/types/agenda";
+import { Cloud, CloudOff, RefreshCw, Link2, Link2Off } from "lucide-react";
 
 const SettingsPage = () => {
   const { theme, setTheme } = useTheme();
@@ -22,6 +26,13 @@ const SettingsPage = () => {
     const stored = localStorage.getItem("notifications_summary_enabled");
     return stored === null ? false : stored === "true";
   });
+  const [calSettings, setCalSettings] = useState<CalendarSettings | null>(null);
+
+  const { connected, provider, connect, disconnect, manualSync, loading: syncLoading } = useGoogleSync(false);
+
+  useEffect(() => {
+    getCalendarSettings().then(setCalSettings).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (location.hash === "#notifications") {
@@ -226,23 +237,56 @@ const SettingsPage = () => {
           <CardHeader>
             <CardTitle>Agenda & planification</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="grid gap-2">
-              <Label>Synchronisation agenda</Label>
-              <Select defaultValue="google">
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="google">Google Calendar</SelectItem>
-                  <SelectItem value="outlook">Outlook</SelectItem>
-                  <SelectItem value="none">Aucune</SelectItem>
-                </SelectContent>
-              </Select>
+          <CardContent className="space-y-4">
+            {/* Google Calendar Sync */}
+            <div className="rounded-xl bg-secondary/30 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  {connected ? (
+                    <Cloud className="w-5 h-5 text-success" />
+                  ) : (
+                    <CloudOff className="w-5 h-5 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className="text-sm font-medium">Google Calendar</p>
+                    <p className="text-xs text-muted-foreground">
+                      {connected ? 'Connecté' : provider === 'none' ? 'Non configuré' : 'Déconnecté'}
+                    </p>
+                  </div>
+                </div>
+                {connected ? (
+                  <Button variant="outline" size="sm" onClick={disconnect}>
+                    <Link2Off className="w-3.5 h-3.5 mr-1" />
+                    Déconnecter
+                  </Button>
+                ) : (
+                  <Button size="sm" onClick={connect}>
+                    <Link2 className="w-3.5 h-3.5 mr-1" />
+                    Connecter
+                  </Button>
+                )}
+              </div>
+              {connected && (
+                <button
+                  onClick={manualSync}
+                  disabled={syncLoading}
+                  className="text-xs text-accent hover:underline disabled:opacity-50"
+                >
+                  <RefreshCw className="w-3 h-3 inline mr-1" />
+                  Synchroniser maintenant
+                </button>
+              )}
             </div>
+
             <div className="grid gap-2">
               <Label>Mode de planification</Label>
-              <Select defaultValue="manual">
+              <Select
+                value={calSettings?.planningMode ?? 'manual'}
+                onValueChange={(v) => {
+                  updateCalendarSettings({ planningMode: v as 'auto' | 'manual' });
+                  setCalSettings((prev) => prev ? { ...prev, planningMode: v as 'auto' | 'manual' } : prev);
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -252,17 +296,80 @@ const SettingsPage = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid gap-2">
               <Label>Distance max entre 2 RDV consécutifs (km)</Label>
-              <Input type="number" min={1} max={500} defaultValue={30} />
+              <Input
+                type="number"
+                min={1}
+                max={500}
+                value={calSettings?.maxDistanceKm ?? 30}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  updateCalendarSettings({ maxDistanceKm: v });
+                  setCalSettings((prev) => prev ? { ...prev, maxDistanceKm: v } : prev);
+                }}
+              />
             </div>
+
             <div className="grid gap-2">
-              <Label>Priorisation</Label>
-              <Textarea placeholder="Score opportunité, proximité géographique" rows={2} />
+              <Label>Seuil de proximité pour suggestions (km)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={50}
+                value={calSettings?.proximityThresholdKm ?? 5}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  updateCalendarSettings({ proximityThresholdKm: v });
+                  setCalSettings((prev) => prev ? { ...prev, proximityThresholdKm: v } : prev);
+                }}
+              />
             </div>
+
+            <div className="grid gap-2">
+              <Label>Score de pertinence minimum (0-100)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={calSettings?.minRelevanceScore ?? 30}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  updateCalendarSettings({ minRelevanceScore: v });
+                  setCalSettings((prev) => prev ? { ...prev, minRelevanceScore: v } : prev);
+                }}
+              />
+            </div>
+
             <div className="grid gap-2">
               <Label>Pause minimum entre RDV (minutes)</Label>
-              <Input type="number" min={0} max={120} defaultValue={10} />
+              <Input
+                type="number"
+                min={0}
+                max={120}
+                value={calSettings?.minBreakMinutes ?? 10}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  updateCalendarSettings({ minBreakMinutes: v });
+                  setCalSettings((prev) => prev ? { ...prev, minBreakMinutes: v } : prev);
+                }}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Cooldown suggestions (heures)</Label>
+              <Input
+                type="number"
+                min={1}
+                max={168}
+                value={calSettings?.suggestionCooldownHours ?? 24}
+                onChange={(e) => {
+                  const v = Number(e.target.value);
+                  updateCalendarSettings({ suggestionCooldownHours: v });
+                  setCalSettings((prev) => prev ? { ...prev, suggestionCooldownHours: v } : prev);
+                }}
+              />
             </div>
           </CardContent>
         </Card>

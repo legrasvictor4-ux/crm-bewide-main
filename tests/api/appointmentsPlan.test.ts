@@ -1,11 +1,10 @@
 import { describe, it, expect } from "vitest";
 import request from "supertest";
-
-const API_BASE = "http://localhost:3000";
+import app from "../../api-server.mjs";
 
 describe("API /api/appointments/plan", () => {
   it("orders by opportunity score then proximity", async () => {
-    const res = await request(API_BASE).post("/api/appointments/plan").send({
+    const res = await (request as any)(app).post("/api/appointments/plan").send({
       date: "2025-01-15",
       startLocation: { latitude: 48.8566, longitude: 2.3522, label: "Paris centre" },
       appointments: [
@@ -40,7 +39,7 @@ describe("API /api/appointments/plan", () => {
     });
 
     expect(res.status).toBe(200);
-    const order = res.body.plan.map((p) => p.id);
+    const order = (res.body.plan as Array<{ id: string }>).map((p) => p.id);
     expect(order[0]).toBe("high-west");
     expect(order[1]).toBe("high-east");
     expect(order[2]).toBe("mid");
@@ -49,7 +48,7 @@ describe("API /api/appointments/plan", () => {
   });
 
   it("returns warning when no appointments on date", async () => {
-    const res = await request(API_BASE).post("/api/appointments/plan").send({
+    const res = await (request as any)(app).post("/api/appointments/plan").send({
       date: "2025-01-16",
       appointments: [
         {

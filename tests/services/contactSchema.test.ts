@@ -7,7 +7,6 @@ describe("contactRecordSchema", () => {
       company: "ACME",
       address: "1 rue",
       postalCode: "75000",
-      city: "Paris",
       status: "prospect",
       opportunityScore: 5,
       primaryContact: { name: "Jean", role: "CEO", phone: "0102030405", email: "jean@example.com" },
@@ -19,7 +18,6 @@ describe("contactRecordSchema", () => {
     const res = contactRecordSchema.safeParse({
       address: "1 rue",
       postalCode: "75000",
-      city: "Paris",
       status: "prospect",
       primaryContact: { name: "Jean", role: "CEO", phone: "0102030405", email: "jean@example.com" },
     });

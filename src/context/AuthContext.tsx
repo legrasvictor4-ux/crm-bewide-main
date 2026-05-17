@@ -1,6 +1,7 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 import { login as loginService, logout as logoutService, startOtp, verifyOtp, loginWithGoogle } from "@/services/auth";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, whenSupabaseReady } from "@/integrations/supabase/client";
+import { useSafeEffect } from "@/hooks/useSafeEffect";
 
 interface AuthContextValue {
   token: string | null;
@@ -24,55 +25,58 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   });
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
+  useSafeEffect((mounted) => {
     if (token) localStorage.setItem("auth_token", token);
     else localStorage.removeItem("auth_token");
   }, [token]);
 
-  useEffect(() => {
+  useSafeEffect((mounted) => {
     if (email) localStorage.setItem("auth_email", email);
     else localStorage.removeItem("auth_email");
   }, [email]);
 
-  useEffect(() => {
+  useSafeEffect((mounted) => {
     const supabaseConfigured = Boolean(
       import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
     );
 
-    // Si Supabase n'est pas configuré (ou injoignable côté réseau), éviter de bloquer le rendu.
     if (!supabaseConfigured) {
-      setToken(null);
-      setEmail(null);
-      setReady(true);
+      if (mounted.current) {
+        setToken(null);
+        setEmail(null);
+        setReady(true);
+      }
       return;
     }
 
     const syncSession = async () => {
       try {
+        await whenSupabaseReady;
         const { data } = await supabase.auth.getSession();
+        if (!mounted.current) return;
         const session = data.session;
         setToken(session?.access_token ?? null);
         setEmail(session?.user?.email ?? null);
       } catch (e) {
         console.error('[AuthContext] getSession failed:', e);
-        // Purge locale sans appel réseau pour stopper toute boucle de refresh
+        if (!mounted.current) return;
         try { await supabase.auth.signOut({ scope: 'local' }); } catch { /* ignore */ }
         setToken(null);
         setEmail(null);
       } finally {
-        setReady(true);
+        if (mounted.current) setReady(true);
       }
     };
     void syncSession();
 
     const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted.current) return;
       setToken(session?.access_token ?? null);
       setEmail(session?.user?.email ?? null);
       setReady(true);
     });
 
     return () => {
-      // Certaines versions/erreurs réseau peuvent rendre subscription indisponible.
       try {
         data?.subscription?.unsubscribe?.();
       } catch {
@@ -80,7 +84,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     };
   }, []);
-
 
   const login = async (payload: { email?: string; password?: string; provider?: "google" | "apple"; otpToken?: string }) => {
     if (payload.provider === "google") {

@@ -14,7 +14,7 @@ type Client = Tables<"clients">;
 async function fetchAnalyticsData() {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, status, lead_score, date_created, city")
+    .select("id, status, lead_score, date_created")
     .order("date_created", { ascending: true });
   if (error) throw error;
   return data as Client[];
@@ -36,11 +36,10 @@ function buildLineData(clients: Client[]) {
 
 function buildRadarData(clients: Client[]) {
   const statuses: Record<string, string> = {
-    new:          "Nouveaux",
-    pending:      "En cours",
-    success:      "Signés",
-    lost:         "Perdus",
-    to_recontact: "À recontacter",
+    prospect:       "Prospects",
+    activé:         "Activés",
+    "client actif": "Clients actifs",
+    perdu:          "Perdus",
   };
   return Object.entries(statuses).map(([key, label]) => ({
     channel: label,
@@ -49,8 +48,8 @@ function buildRadarData(clients: Client[]) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "Nouveau", pending: "En cours", success: "Signé",
-  lost: "Perdu", to_recontact: "À recontacter",
+  prospect: "Prospect", activé: "Activé",
+  "client actif": "Client actif", perdu: "Perdu",
 };
 
 const Analytics = () => {
@@ -62,7 +61,7 @@ const Analytics = () => {
 
   // ── KPIs ─────────────────────────────────────────────────────────────────
   const total      = clients.length;
-  const qualified  = clients.filter(c => (c.lead_score ?? 0) >= 60 || c.status === "success").length;
+  const qualified  = clients.filter(c => (c.lead_score ?? 0) >= 60 || c.status === "client actif").length;
   const avgScore   = total > 0
     ? Math.round(clients.reduce((s, c) => s + (c.lead_score ?? 0), 0) / total)
     : 0;
@@ -76,7 +75,7 @@ const Analytics = () => {
   const newLastMonth = clients.filter(c => c.date_created >= lastMonth && c.date_created <= endLastMonth).length;
   const newDelta     = newLastMonth > 0 ? ((newThisMonth - newLastMonth) / newLastMonth * 100).toFixed(1) : null;
 
-  const successCount = clients.filter(c => c.status === "success").length;
+  const successCount = clients.filter(c => c.status === "client actif").length;
   const convRate     = total > 0 ? ((successCount / total) * 100).toFixed(1) : "0";
 
   const kpis = [
@@ -114,15 +113,17 @@ const Analytics = () => {
   const lineData  = buildLineData(clients);
   const radarData = buildRadarData(clients);
 
-  // ── Top ville + stats par statut ─────────────────────────────────────────
-  const cityCounts = clients.reduce<Record<string, number>>((acc, c) => {
-    const key = c.city || "Inconnu";
+  // ── Stats par statut ─────────────────────────────────────────────────────
+
+  // ── Stats par arrondissement + stats par statut ──────────────────────────
+  const arrondissementCounts = clients.reduce<Record<string, number>>((acc, c) => {
+    const key = c.arrondissement || "Non renseigné";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
-  const topCity = Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0];
+  const topArrondissement = Object.entries(arrondissementCounts).sort((a, b) => b[1] - a[1])[0];
 
-  const statusCounts = (["new", "pending", "success", "lost", "to_recontact"] as const).map(s => ({
+  const statusCounts = (["prospect", "activé", "client actif", "perdu"] as const).map(s => ({
     label: STATUS_LABELS[s],
     value: clients.filter(c => c.status === s).length,
     max: total,
@@ -225,9 +226,9 @@ const Analytics = () => {
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
-              <p className="text-xs text-muted-foreground">Top ville</p>
-              <p className="text-sm font-semibold">{topCity?.[0] ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">{topCity?.[1] ?? 0} contact(s)</p>
+              <p className="text-xs text-muted-foreground">Top arrondissement</p>
+              <p className="text-sm font-semibold">{topArrondissement?.[0] ?? "—"}</p>
+              <p className="text-xs text-muted-foreground">{topArrondissement?.[1] ?? 0} contact(s)</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
               <p className="text-xs text-muted-foreground">Nouveaux ce mois</p>

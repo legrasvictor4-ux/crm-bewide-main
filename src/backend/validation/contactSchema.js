@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { contactRecordSchema } from "../../types/contact.js";
+import { contactRecordSchema } from "./contactRecord.js";
 
 export const contactSchema = contactRecordSchema;
 

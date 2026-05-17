@@ -1,13 +1,12 @@
-// batchImportRoute.js - Gestionnaire d'importation de dossiers clients
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
-import { randomUUID } from 'crypto';
+import crypto from 'crypto';
+import { whitelistClientRecord, sanitizeClientPayload } from './dbUtils.js';
 
 const router = express.Router();
 
-// Configuration du stockage des fichiers temporaires
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadDir = path.join(process.cwd(), 'temp_uploads');
@@ -17,22 +16,19 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
-    // Conserver la structure de dossiers dans le nom du fichier
     const relativePath = file.originalname.replace(/\\/g, '/');
-    cb(null, `${randomUUID()}_${path.basename(relativePath)}`);
+    cb(null, `${crypto.randomUUID()}_${path.basename(relativePath)}`);
   }
 });
 
 const upload = multer({ 
   storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max par fichier
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    // Accepter tous les types de fichiers pour l'instant
     cb(null, true);
   }
 });
 
-// Middleware pour gérer les erreurs d'upload
 const handleUploadErrors = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     if (err.code === 'LIMIT_FILE_SIZE') {
@@ -54,7 +50,6 @@ const handleUploadErrors = (err, req, res, next) => {
   next();
 };
 
-// Endpoint pour l'upload de dossiers
 router.post('/folder', upload.array('files'), handleUploadErrors, async (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -72,26 +67,19 @@ router.post('/folder', upload.array('files'), handleUploadErrors, async (req, re
       errorDetails: []
     };
 
-    // Traiter chaque fichier téléchargé
     for (const file of req.files) {
       try {
-        // Extraire les informations du chemin du fichier
         const fileInfo = extractFileInfo(file.originalname);
-        
-        // Lire et traiter le contenu du fichier
         const content = fs.readFileSync(file.path, 'utf-8');
-        const clientData = await processClientFile(content, fileInfo);
-        
-        // Ici, vous devriez ajouter la logique pour sauvegarder dans votre base de données
-        // Par exemple : await saveClientToDatabase(clientData);
-        
+        const clientData = processClientFile(content, fileInfo);
+
         results.clients.push({
-          id: clientData.id || uuidv4(),
-          name: clientData.name || 'Client sans nom',
-          status: 'imported',
+          id: clientData.id || crypto.randomUUID(),
+          last_name: clientData.last_name || 'Client sans nom',
+          status: clientData.status || 'prospect',
           file: file.originalname
         });
-        
+
         results.processed++;
       } catch (error) {
         console.error(`Erreur lors du traitement du fichier ${file.originalname}:`, error);
@@ -101,7 +89,6 @@ router.post('/folder', upload.array('files'), handleUploadErrors, async (req, re
           error: error.message
         });
       } finally {
-        // Nettoyer le fichier temporaire
         try {
           fs.unlinkSync(file.path);
         } catch (e) {
@@ -110,7 +97,6 @@ router.post('/folder', upload.array('files'), handleUploadErrors, async (req, re
       }
     }
 
-    // Répondre avec les résultats
     res.json({
       success: true,
       message: `Import terminé avec succès (${results.processed} clients importés, ${results.errors} erreurs)`,
@@ -127,15 +113,10 @@ router.post('/folder', upload.array('files'), handleUploadErrors, async (req, re
   }
 });
 
-// Fonction pour extraire les informations du fichier à partir du chemin
 function extractFileInfo(filePath) {
   const pathParts = filePath.split(/[\\/]/);
   const fileName = path.basename(filePath);
-  
-  // Exemple: extraire le nom du client du chemin du dossier
-  // Cela dépend de votre structure de dossiers
   const clientName = pathParts.length > 1 ? pathParts[pathParts.length - 2] : null;
-  
   return {
     fileName,
     clientName,
@@ -144,45 +125,35 @@ function extractFileInfo(filePath) {
   };
 }
 
-// Fonction pour traiter le contenu d'un fichier client
-async function processClientFile(content, fileInfo) {
-  // Cette fonction doit être adaptée selon le format de vos fichiers clients
-  // Voici un exemple basique pour un fichier JSON ou texte
-  
-  let clientData = {};
-  
+function processClientFile(content, fileInfo) {
+  let raw = {};
   try {
-    // Essayer de parser comme JSON
-    clientData = JSON.parse(content);
+    raw = JSON.parse(content);
   } catch (e) {
-    // Si ce n'est pas du JSON, traiter comme du texte brut
-    clientData = {
-      name: fileInfo.clientName || 'Client inconnu',
+    raw = {
+      name: fileInfo.clientName,
       notes: content,
       sourceFile: fileInfo.fileName
     };
   }
-  
-  // Normaliser les données du client
-  return {
-    id: clientData.id || uuidv4(),
-    name: clientData.name || fileInfo.clientName || 'Client sans nom',
-    email: clientData.email || null,
-    phone: clientData.phone || clientData.telephone || null,
-    address: clientData.address || clientData.adresse || null,
-    company: clientData.company || clientData.societe || null,
-    position: clientData.position || clientData.poste || null,
-    status: clientData.status || 'new',
-    tags: Array.isArray(clientData.tags) ? clientData.tags : [],
-    notes: clientData.notes || '',
-    metadata: {
-      importDate: new Date().toISOString(),
-      sourceFile: fileInfo.fileName,
-      ...(clientData.metadata || {})
-    },
-    // Conserver les données brutes pour référence
-    _raw: clientData
+
+  const mapped = {
+    last_name: raw.name || raw.last_name || fileInfo.clientName || 'Client sans nom',
+    email: raw.email || null,
+    phone: raw.phone || raw.telephone || null,
+    address: raw.address || raw.adresse || null,
+    company: raw.company || raw.societe || null,
+    status: raw.status || 'prospect',
+    notes: raw.notes || '',
+    source_file: raw.sourceFile || fileInfo.fileName || null,
+    imported_at: new Date().toISOString(),
+    metadata: { importDate: new Date().toISOString(), sourceFile: fileInfo.fileName },
   };
+
+  const clean = sanitizeClientPayload(mapped);
+  clean.id = raw.id || crypto.randomUUID();
+
+  return clean;
 }
 
 export default router;

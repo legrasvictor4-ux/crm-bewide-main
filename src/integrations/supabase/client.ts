@@ -39,8 +39,35 @@ try {
   }
 } catch { /* localStorage indisponible (SSR/test) */ }
 
-// Import the supabase client like this:
-// import { supabase } from "@/integrations/supabase/client";
+type Unsubscribe = () => void;
+type ReadyCallback = () => void;
+
+let _listeners: Set<ReadyCallback> | null = null;
+
+export let isSupabaseReady = false;
+
+export function onSupabaseReady(cb: ReadyCallback): Unsubscribe {
+  if (isSupabaseReady) {
+    cb();
+    return () => {};
+  }
+  if (!_listeners) _listeners = new Set();
+  _listeners.add(cb);
+  return () => { _listeners?.delete(cb); };
+}
+
+function notifyReady(): void {
+  isSupabaseReady = true;
+  if (_listeners) {
+    _listeners.forEach((cb) => cb());
+    _listeners.clear();
+  }
+}
+
+let _resolveReady!: (value: boolean) => void;
+export const whenSupabaseReady = new Promise<boolean>((resolve) => {
+  _resolveReady = resolve;
+});
 
 export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: {
@@ -49,3 +76,8 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, 
     autoRefreshToken: true,
   },
 });
+
+// Signal que le client Supabase est prêt à être utilisé.
+// Les queries doivent attendre whenSupabaseReady avant de s'exécuter.
+notifyReady();
+_resolveReady(true);

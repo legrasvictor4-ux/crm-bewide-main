@@ -170,7 +170,7 @@ const ExcelUpload = ({ onImportSuccess }: { onImportSuccess?: () => void }) => {
 
             <div className="text-xs text-muted-foreground space-y-1">
               <p><strong>Colonnes requises:</strong> last_name (ou nom)</p>
-              <p><strong>Colonnes optionnelles:</strong> first_name, email, phone, company, address, postal_code, city, arrondissement, contact, notes</p>
+              <p><strong>Colonnes optionnelles:</strong> first_name, email, phone, company, address, postal_code, arrondissement, contact, notes</p>
             </div>
           </div>
         )}
@@ -264,4 +264,3 @@ const ExcelUpload = ({ onImportSuccess }: { onImportSuccess?: () => void }) => {
 };
 
 export default ExcelUpload;
-

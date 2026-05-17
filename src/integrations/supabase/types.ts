@@ -17,81 +17,54 @@ export type Database = {
       clients: {
         Row: {
           id: string
-          first_name: string | null
-          last_name: string
+          name: string | null
           email: string | null
           phone: string | null
-          company: string | null
           address: string | null
-          postal_code: string | null
-          city: string | null
-          arrondissement: string | null
-          contact: string | null
-          status: 'new' | 'success' | 'pending' | 'lost' | 'to_recontact'
-          notes: string | null
-          next_action: string | null
-          date_created: string
-          date_updated: string
-          imported_at: string | null
-          source_file: string | null
-          enrichment_data: Json | null
-          business_description: string | null
-          segmentation: string | null
-          lead_score: number | null
-          enriched_at: string | null
-          metadata: Json
+          status: 'prospect' | 'activé' | 'client actif' | 'perdu'
+          role: 'patron' | 'manager' | 'salarié' | 'autre' | 'NC' | null
+          latitude: number | null
+          longitude: number | null
+          statut_opportunite: 'chaud' | 'tiède' | 'froid' | 'perdu' | 'gagné' | null
+          priorite: 'haute' | 'moyenne' | 'basse' | null
+          motif_objection: string | null
+          date_relance: string | null
+          offre_cible: 'Essentiel' | 'VIP trimestre' | 'VIP bimestriel' | 'À qualifier' | null
+          canal_acquisition: 'terrain' | 'référence' | 'À qualifier' | null
         }
         Insert: {
           id?: string
-          first_name?: string | null
-          last_name: string
+          name?: string | null
           email?: string | null
           phone?: string | null
-          company?: string | null
           address?: string | null
-          postal_code?: string | null
-          city?: string | null
-          arrondissement?: string | null
-          contact?: string | null
-          status?: 'new' | 'success' | 'pending' | 'lost' | 'to_recontact'
-          notes?: string | null
-          next_action?: string | null
-          date_created?: string
-          date_updated?: string
-          imported_at?: string | null
-          source_file?: string | null
-          enrichment_data?: Json | null
-          business_description?: string | null
-          segmentation?: string | null
-          lead_score?: number | null
-          enriched_at?: string | null
-          metadata?: Json
+          status?: 'prospect' | 'activé' | 'client actif' | 'perdu'
+          role?: 'patron' | 'manager' | 'salarié' | 'autre' | 'NC' | null
+          latitude?: number | null
+          longitude?: number | null
+          statut_opportunite?: 'chaud' | 'tiède' | 'froid' | 'perdu' | 'gagné' | null
+          priorite?: 'haute' | 'moyenne' | 'basse' | null
+          motif_objection?: string | null
+          date_relance?: string | null
+          offre_cible?: 'Essentiel' | 'VIP trimestre' | 'VIP bimestriel' | 'À qualifier' | null
+          canal_acquisition?: 'terrain' | 'référence' | 'À qualifier' | null
         }
         Update: {
           id?: string
-          first_name?: string | null
-          last_name?: string
+          name?: string | null
           email?: string | null
           phone?: string | null
-          company?: string | null
           address?: string | null
-          postal_code?: string | null
-          city?: string | null
-          arrondissement?: string | null
-          contact?: string | null
-          status?: 'new' | 'success' | 'pending' | 'lost' | 'to_recontact'
-          notes?: string | null
-          next_action?: string | null
-          date_created?: string
-          date_updated?: string
-          imported_at?: string | null
-          source_file?: string | null
-          enrichment_data?: Json | null
-          business_description?: string | null
-          segmentation?: string | null
-          lead_score?: number | null
-          enriched_at?: string | null
-          metadata?: Json
+          status?: 'prospect' | 'activé' | 'client actif' | 'perdu'
+          role?: 'patron' | 'manager' | 'salarié' | 'autre' | 'NC' | null
+          latitude?: number | null
+          longitude?: number | null
+          statut_opportunite?: 'chaud' | 'tiède' | 'froid' | 'perdu' | 'gagné' | null
+          priorite?: 'haute' | 'moyenne' | 'basse' | null
+          motif_objection?: string | null
+          date_relance?: string | null
+          offre_cible?: 'Essentiel' | 'VIP trimestre' | 'VIP bimestriel' | 'À qualifier' | null
+          canal_acquisition?: 'terrain' | 'référence' | 'À qualifier' | null
         }
       }
     }

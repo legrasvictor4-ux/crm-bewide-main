@@ -1,47 +1,56 @@
 {
   "name": "BeWide CRM",
   "short_name": "BeWide",
+  "description": "CRM mobile-first avec timeline intelligente et capture vocale — prospection terrain",
   "start_url": "/",
+  "id": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "portrait-primary",
+  "lang": "fr-FR",
   "theme_color": "#0f172a",
   "background_color": "#0f172a",
-  "description": "CRM mobile-first avec timeline intelligente et capture vocale.",
+  "categories": ["business", "productivity", "utilities"],
+  "iarc_rating_id": "e84b073d-7b47-4b6e-9914-d1264fc7ff5d",
+  "edge_side_panel": {
+    "preferred_width": 480
+  },
+  "screenshots": [],
   "icons": [
-    {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/icon-maskable.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
     {
+      "name": "Nouveau prospect",
+      "short_name": "Nouveau",
+      "description": "Ajouter un prospect par dictée vocale",
+      "url": "/?action=new-client",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
       "name": "Timeline",
       "short_name": "Timeline",
+      "description": "Voir la timeline des actions",
       "url": "/timeline",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "Agenda",
       "short_name": "Agenda",
+      "description": "Planifier des rendez-vous",
       "url": "/agenda",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     },
     {
-      "name": "Contacts",
-      "short_name": "Contacts",
+      "name": "Prospects",
+      "short_name": "Prospects",
+      "description": "Liste des prospects",
       "url": "/contacts",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

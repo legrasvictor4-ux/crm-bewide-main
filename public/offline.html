@@ -4,20 +4,31 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BeWide CRM - Hors ligne</title>
+  <meta name="theme-color" content="#0f172a" />
   <style>
     :root { color-scheme: light dark; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
-    body { margin: 0; display: grid; place-items: center; min-height: 100vh; padding: 24px; background: #0f172a; color: #f8fafc; }
-    .card { max-width: 420px; width: 100%; border-radius: 16px; padding: 24px; background: rgba(255,255,255,0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+    body { margin: 0; display: grid; place-items: center; min-height: 100vh; padding: 24px; background: #0f172a; color: #f8fafc; text-align: center; }
+    .card { max-width: 420px; width: 100%; border-radius: 16px; padding: 32px 24px; background: rgba(255,255,255,0.08); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.08); }
+    .icon { font-size: 48px; margin-bottom: 16px; display: block; }
     h1 { margin: 0 0 8px; font-size: 20px; }
-    p { margin: 0 0 12px; line-height: 1.5; color: #cbd5e1; }
-    small { color: #94a3b8; }
+    p { margin: 0 0 16px; line-height: 1.5; color: #cbd5e1; }
+    .status { display: inline-block; padding: 4px 12px; border-radius: 20px; background: rgba(250,204,21,0.15); color: #facc15; font-size: 12px; font-weight: 600; margin-bottom: 16px; }
+    .retry-btn { display: inline-block; padding: 10px 24px; border-radius: 12px; background: #3b82f6; color: white; text-decoration: none; font-weight: 600; font-size: 14px; border: none; cursor: pointer; }
+    .retry-btn:active { background: #2563eb; }
+    small { color: #94a3b8; display: block; margin-top: 24px; font-size: 12px; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h1>Mode hors ligne</h1>
-    <p>Vous êtes hors connexion. Les actions seront disponibles dès que le réseau reviendra.</p>
-    <small>BeWide CRM</small>
+    <span class="icon">📡</span>
+    <div class="status">Hors ligne</div>
+    <h1>Connexion perdue</h1>
+    <p>Vous êtes hors connexion.<br/>Les données seront synchronisées automatiquement dès que le réseau sera rétabli.</p>
+    <button class="retry-btn" onclick="window.location.reload()">Réessayer</button>
+    <small>BeWide CRM v2 — Mode dégradé</small>
   </div>
+  <script>
+    window.addEventListener('online', () => window.location.reload());
+  </script>
 </body>
 </html>

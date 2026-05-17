@@ -1,229 +1,315 @@
-import { useMemo, useState, useEffect } from "react";
-import { MapPin, Clock, CheckCircle2, AlertCircle, XCircle, Phone, Mail, Building, X, Map, Loader2, Plus } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { MapPin, Clock, AlertCircle, X, Loader2, Flame, Droplets, Snowflake } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { toast } from "sonner";
 import AddClientDialog from "@/components/AddClientDialog";
 import ClientRowActions from "@/components/ClientRowActions";
 import { useClients } from "@/hooks/use-clients";
 import type { Client } from "@/services/clients";
 
 interface Prospection {
-  id: string;
-  name: string;
-  arrondissement: string | null;
-  address?: string | null;
-  postalCode?: string | null;
-  city?: string | null;
-  phone?: string | null;
-  email?: string | null;
-  status: "success" | "pending" | "lost" | "to_recontact" | "new";
-  contact?: string | null;
-  nextAction?: string | null;
-  date: string;
-  notes: string | null;
-  lead_score?: number | null;
+  id:                 string;
+  name:               string | null;
+  address?:           string | null;
+  phone?:             string | null;
+  email?:             string | null;
+  status:             'prospect' | 'activé' | 'client actif' | 'perdu';
+  statut_opportunite: 'chaud' | 'tiède' | 'froid' | 'perdu' | 'gagné' | null;
+  priorite:           string | null;
+  role?:              string | null;
+  dateRelance?:       string | null;
+  motif_objection?:   string | null;
+  offre_cible?:       string | null;
+  canal_acquisition?: string | null;
 }
 
 interface ProspectionListProps {
   refreshTrigger?: number;
-  minScore?: number;
-  sortByScore?: boolean;
-  search?: string;
+  minScore?:       number;
+  sortByScore?:    boolean;
+  search?:         string;
 }
 
-const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, search = "" }: ProspectionListProps) => {
-  const [filter, setFilter] = useState<string>("all");
-  const [selectedProspection, setSelectedProspection] = useState<Prospection | null>(null);
-  const [showAddDialog, setShowAddDialog] = useState(false);
+// ─── Référentiels affichage ───────────────────────────────────────────────────
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  "prospect":     { label: "Prospect",     color: "#6366f1", bg: "#eff0fe" },
+  "activé":       { label: "Activé",       color: "#f59e0b", bg: "#fffbeb" },
+  "client actif": { label: "Client actif", color: "#10b981", bg: "#ecfdf5" },
+  "perdu":        { label: "Perdu",        color: "#ef4444", bg: "#fef2f2" },
+};
 
-  const mapToProspection = (client: Client): Prospection => ({
-    id: client.id,
-    name: client.company || `${client.first_name || ""} ${client.last_name || ""}`.trim() || "Client sans nom",
-    arrondissement: client.arrondissement || null,
-    address: client.address || null,
-    postalCode: client.postal_code || null,
-    city: client.city || null,
-    phone: client.phone || null,
-    email: client.email || null,
-    status: client.status as Prospection["status"],
-    contact: client.contact || null,
-    nextAction: client.next_action || null,
-    date: client.date_created || new Date().toISOString(),
-    notes: client.notes || null,
-    lead_score: client.lead_score,
+const OPP_MAP: Record<string, { label: string; color: string; bg: string; icon: React.ReactNode }> = {
+  "chaud": { label: "Chaud", color: "#16a34a", bg: "#dcfce7", icon: <Flame  className="h-3 w-3" /> },
+  "tiède": { label: "Tiède", color: "#2563eb", bg: "#dbeafe", icon: <Droplets className="h-3 w-3" /> },
+  "froid": { label: "Froid", color: "#64748b", bg: "#f1f5f9", icon: <Snowflake className="h-3 w-3" /> },
+  "gagné": { label: "Gagné", color: "#059669", bg: "#d1fae5", icon: null },
+  "perdu": { label: "Perdu", color: "#ef4444", bg: "#fee2e2", icon: null },
+};
+
+const FILTERS = [
+  { value: "all",          label: "Tous",        field: "status"            },
+  { value: "prospect",     label: "Prospects",   field: "status"            },
+  { value: "activé",       label: "Activés",     field: "status"            },
+  { value: "client actif", label: "Clients",     field: "status"            },
+  { value: "chaud",        label: "Chaud",       field: "statut_opportunite" },
+  { value: "tiède",        label: "Tiède",       field: "statut_opportunite" },
+  { value: "perdu",        label: "Perdus",      field: "status"            },
+] as const;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────────
+function initials(name: string) {
+  return name.split(/\s+/).map(w => w[0]?.toUpperCase() ?? "").slice(0, 2).join("") || "?";
+}
+
+// ─── Composant ────────────────────────────────────────────────────────────────
+const ProspectionList = ({
+  refreshTrigger, minScore = 0, sortByScore = false, search = "",
+}: ProspectionListProps) => {
+  const [filterIdx, setFilterIdx] = useState(0);
+  const [selected,  setSelected]  = useState<Prospection | null>(null);
+  const [showAdd,   setShowAdd]   = useState(false);
+  const mountedRef              = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  const activeFilter = FILTERS[filterIdx];
+
+  const mapToProspection = (c: Client): Prospection => ({
+    id:                 c.id,
+    name:               c.name || "Sans nom",
+    address:            c.address || null,
+    phone:              c.phone || null,
+    email:              c.email || null,
+    status:             c.status as Prospection["status"],
+    statut_opportunite: c.statut_opportunite as Prospection["statut_opportunite"],
+    priorite:           c.priorite || null,
+    role:               c.role || null,
+    dateRelance:        c.date_relance || null,
+    motif_objection:    c.motif_objection || null,
+    offre_cible:        c.offre_cible || null,
+    canal_acquisition:  c.canal_acquisition || null,
   });
 
   const { data: clientsData, isLoading, error, refetch } = useClients({
-    filter,
+    filter:      activeFilter.value === "all" ? "all" : activeFilter.value as any,
+    filterField: activeFilter.field as any,
     minScore,
     sortByScore,
     search,
   });
 
-  const prospections = useMemo(() => (clientsData || []).map(mapToProspection), [clientsData]);
+  const prospections = useMemo(
+    () => (clientsData || []).map(mapToProspection),
+    [clientsData],
+  );
 
-  // Refetch when refreshTrigger changes
   useEffect(() => {
-    if (refreshTrigger) {
-      refetch();
-    }
+    if (refreshTrigger && mountedRef.current) refetch();
   }, [refreshTrigger, refetch]);
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "success":
-        return <CheckCircle2 className="h-5 w-5 text-success" />;
-      case "pending":
-        return <Clock className="h-5 w-5 text-warning" />;
-      case "lost":
-        return <XCircle className="h-5 w-5 text-destructive" />;
-      case "to_recontact":
-        return <AlertCircle className="h-5 w-5 text-accent" />;
-      default:
-        return null;
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "success":
-        return "Client confirmé";
-      case "pending":
-        return "En attente";
-      case "lost":
-        return "Opportunité perdue";
-      case "to_recontact":
-        return "À relancer";
-      default:
-        return status;
-    }
-  };
-
-  const getStatusVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
-    switch (status) {
-      case "success":
-        return "default";
-      case "pending":
-        return "secondary";
-      case "lost":
-        return "destructive";
-      case "to_recontact":
-        return "outline";
-      default:
-        return "default";
-    }
-  };
-
-  const filteredData = prospections;
 
   if (isLoading) {
     return (
-      <div className="relative bg-card rounded-xl shadow-md border border-border p-12">
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="text-muted-foreground">Chargement des clients...</p>
-        </div>
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="h-6 w-6 animate-spin text-[#1a1a2e]/30" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="relative bg-card rounded-xl shadow-md border border-border p-12">
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <AlertCircle className="h-8 w-8 text-destructive" />
-          <p className="text-destructive font-medium">Erreur lors du chargement</p>
-          <p className="text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : 'Une erreur est survenue'}
-          </p>
-          <Button onClick={() => refetch()} variant="outline">
-            Réessayer
-          </Button>
-        </div>
+      <div className="flex flex-col items-center gap-3 py-16">
+        <AlertCircle className="h-6 w-6 text-red-400" />
+        <p className="text-sm text-[#1a1a2e]/50">Erreur lors du chargement</p>
+        <button onClick={() => refetch()} className="text-xs text-[#1a1a2e] underline">Réessayer</button>
       </div>
     );
   }
 
   return (
-    <div className="relative bg-card rounded-xl shadow-md border border-border">
-      {/* Client Detail Panel */}
-      {selectedProspection && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/50" onClick={() => setSelectedProspection(null)}>
-          <div className="w-full max-w-md bg-background h-full overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
-            <div className="p-4 border-b flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Détails du client</h3>
-              <Button variant="ghost" size="icon" onClick={() => setSelectedProspection(null)}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-            <ScrollArea className="flex-1 p-6">
-              <div className="space-y-6">
-                <div className="flex items-start gap-4">
-                  <div className="bg-accent/20 p-3 rounded-lg">
-                    <Building className="h-6 w-6 text-accent" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold">{selectedProspection.name}</h2>
-                    <p className="text-muted-foreground">{selectedProspection.contact}</p>
-                  </div>
+    <>
+      {/* ── Filtres ─────────────────────────────────────────────────────── */}
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {FILTERS.map((f, i) => (
+          <button key={f.value + f.field} onClick={() => setFilterIdx(i)}
+            className={`flex-none px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+              i === filterIdx
+                ? "bg-[#1a1a2e] text-white"
+                : "bg-white border border-black/[0.09] text-[#1a1a2e]/60 hover:border-[#1a1a2e]/25"
+            }`}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Liste ───────────────────────────────────────────────────────── */}
+      {prospections.length === 0 ? (
+        <div className="flex flex-col items-center gap-2 py-14">
+          <p className="text-sm font-medium text-[#1a1a2e]/40">Aucun prospect trouvé</p>
+          <button onClick={() => setShowAdd(true)} className="text-xs text-[#1a1a2e] underline">
+            Ajouter le premier
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          {prospections.map(p => {
+            const st  = STATUS_MAP[p.status] ?? STATUS_MAP["prospect"];
+            const opp = p.statut_opportunite ? OPP_MAP[p.statut_opportunite] : null;
+
+            return (
+              <div key={p.id} onClick={() => setSelected(p)}
+                className="bg-white rounded-2xl border border-black/[0.06] px-4 py-3.5 flex items-center gap-3
+                            hover:border-[#1a1a2e]/15 active:bg-[#1a1a2e]/[0.02]
+                            transition-all cursor-pointer">
+
+                {/* Avatar */}
+                <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 text-sm font-bold"
+                  style={{ background: st.bg, color: st.color }}>
+                  {initials(p.name || "")}
                 </div>
 
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-sm">
-                    <MapPin className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                    <div>
-                      <p className="font-medium">Adresse</p>
-                  <p className="text-muted-foreground">
-                    {selectedProspection.address && (
-                      <>
-                        {selectedProspection.address}
-                        <br />
-                      </>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-sm font-semibold text-[#1a1a2e] truncate leading-snug">{p.name}</p>
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {p.address && (
+                      <span className="text-[11px] text-[#1a1a2e]/45 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />{p.address}
+                      </span>
                     )}
-                    {selectedProspection.postalCode} {selectedProspection.city}
-                  </p>
-                    </div>
+                    {p.role && (
+                      <span className="text-[11px] text-[#1a1a2e]/35">{p.role}</span>
+                    )}
+                    {p.dateRelance && p.dateRelance !== "NC" && (
+                      <span className="text-[10px] text-amber-500 flex items-center gap-0.5">
+                        <Clock className="h-3 w-3" />{p.dateRelance}
+                      </span>
+                    )}
                   </div>
+                </div>
 
-                  {selectedProspection.phone && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Phone className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Téléphone</p>
-                        <p className="text-muted-foreground">{selectedProspection.phone}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {selectedProspection.email && (
-                    <div className="flex items-center gap-3 text-sm">
-                      <Mail className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">Email</p>
-                        <p className="text-muted-foreground">{selectedProspection.email}</p>
-                      </div>
-                    </div>
+                {/* Badges */}
+                <div className="flex flex-col items-end gap-1 shrink-0">
+                  <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: st.bg, color: st.color }}>
+                    {st.label}
+                  </span>
+                  {opp && (
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1"
+                      style={{ background: opp.bg, color: opp.color }}>
+                      {opp.icon}{opp.label}
+                    </span>
                   )}
                 </div>
 
-                {selectedProspection.notes && (
-                  <div className="pt-4 border-t">
-                    <h4 className="font-medium mb-2">Notes</h4>
-                    <div className="bg-secondary/50 p-4 rounded-lg">
-                      <p className="text-sm">{selectedProspection.notes}</p>
+                <div onClick={e => e.stopPropagation()}>
+                  <ClientRowActions clientId={p.id} clientName={p.name || undefined}
+                    onDeleted={() => { refetch(); setSelected(null); }} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Panneau détail ────────────────────────────────────────────── */}
+      {selected && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:justify-center sm:items-center bg-black/30 backdrop-blur-[1px]"
+          onClick={() => setSelected(null)}>
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[90vh] overflow-hidden flex flex-col shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+
+            <div className="w-9 h-[3px] bg-black/12 rounded-full mx-auto mt-3 sm:hidden" />
+
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/[0.06]">
+              <div className="flex items-center gap-3 min-w-0">
+                {(() => {
+                  const st = STATUS_MAP[selected.status] ?? STATUS_MAP["prospect"];
+                  return (
+                    <div className="w-10 h-10 rounded-[14px] flex items-center justify-center shrink-0 text-sm font-bold"
+                      style={{ background: st.bg, color: st.color }}>
+                      {initials(selected.name || "")}
+                    </div>
+                  );
+                })()}
+                <div className="min-w-0">
+                  <p className="font-bold text-[#1a1a2e] truncate">{selected.name}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selected.role && (
+                      <span className="text-xs text-[#1a1a2e]/45">{selected.role}</span>
+                    )}
+                    {selected.statut_opportunite && (() => {
+                      const opp = OPP_MAP[selected.statut_opportunite];
+                      return (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                          style={{ background: opp.bg, color: opp.color }}>
+                          {opp.icon}{opp.label}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+              <button onClick={() => setSelected(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl text-[#1a1a2e]/40 hover:text-[#1a1a2e] hover:bg-black/5 transition">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <ScrollArea className="flex-1 px-5 py-4">
+              <div className="space-y-3">
+
+                {/* Adresse */}
+                {selected.address && (
+                  <Row icon={<MapPin className="h-4 w-4" />} label="Adresse">
+                    {selected.address}
+                  </Row>
+                )}
+
+                {/* Contact */}
+                {selected.phone && (
+                  <Row icon={<span className="text-sm">📞</span>} label="Téléphone">
+                    <a href={`tel:${selected.phone}`} className="text-[#1a1a2e] underline-offset-2 hover:underline">{selected.phone}</a>
+                  </Row>
+                )}
+                {selected.email && (
+                  <Row icon={<span className="text-sm">✉️</span>} label="Email">
+                    <a href={`mailto:${selected.email}`} className="text-[#1a1a2e] underline-offset-2 hover:underline">{selected.email}</a>
+                  </Row>
+                )}
+
+                {/* Détails */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "Rôle",     value: selected.role },
+                    { label: "Priorité", value: selected.priorite },
+                    { label: "Offre",    value: selected.offre_cible },
+                    { label: "Canal",    value: selected.canal_acquisition },
+                  ].filter(r => r.value).map(r => (
+                    <div key={r.label} className="rounded-xl bg-[#F4F5F8] px-3 py-2">
+                      <p className="text-[10px] font-semibold text-[#1a1a2e]/40 uppercase tracking-wide">{r.label}</p>
+                      <p className="text-xs font-medium text-[#1a1a2e] mt-0.5">{r.value}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Relance */}
+                {selected.dateRelance && selected.dateRelance !== "NC" && (
+                  <div className="flex items-center gap-2.5 rounded-xl bg-amber-50 px-4 py-3">
+                    <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+                    <div>
+                      <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wide">Relance</p>
+                      <p className="text-sm text-amber-800">{selected.dateRelance}</p>
                     </div>
                   </div>
                 )}
 
-                {selectedProspection.nextAction && (
-                  <div className="flex items-center gap-3 p-3 bg-accent/10 rounded-lg">
-                    <Clock className="h-5 w-5 text-accent flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium">Prochaine action</p>
-                      <p className="text-sm">{selectedProspection.nextAction}</p>
-                    </div>
+                {/* Motif objection */}
+                {selected.motif_objection && (
+                  <div className="rounded-xl bg-red-50 px-4 py-3">
+                    <p className="text-[11px] font-semibold text-red-500 uppercase tracking-wide mb-1">Objection</p>
+                    <p className="text-sm text-red-700">{selected.motif_objection}</p>
                   </div>
                 )}
               </div>
@@ -231,141 +317,24 @@ const ProspectionList = ({ refreshTrigger, minScore = 0, sortByScore = false, se
           </div>
         </div>
       )}
-      {/* Header */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
-          <h2 className="text-xl font-bold text-foreground">Prospections</h2>
-          <Button onClick={() => setShowAddDialog(true)} size="sm" className="gap-2">
-            <Plus className="h-4 w-4" />
-            Ajouter un client
-          </Button>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setFilter("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "all"
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
-          >
-            Toutes
-          </button>
-          <button
-            onClick={() => setFilter("success")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "success"
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
-          >
-            Confirmées
-          </button>
-          <button
-            onClick={() => setFilter("to_recontact")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "to_recontact"
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
-          >
-            À relancer
-          </button>
-          <button
-            onClick={() => setFilter("pending")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === "pending"
-                ? "bg-accent text-accent-foreground"
-                : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-            }`}
-          >
-            En attente
-          </button>
-        </div>
-      </div>
 
-      {/* List */}
-      <div className="divide-y divide-border">
-        {filteredData.length === 0 ? (
-          <div className="p-12 text-center">
-            <p className="text-muted-foreground">Aucun client trouvé</p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Importez des clients depuis un fichier Excel pour commencer
-            </p>
-          </div>
-        ) : (
-          filteredData.map((prospection) => (
-          <div
-            key={prospection.id}
-            className="p-6 hover:bg-secondary/50 transition-colors cursor-pointer"
-            onClick={() => setSelectedProspection(prospection)}
-          >
-              <div className="flex items-start justify-between gap-4 gap-y-2 mb-3 flex-wrap">
-              <div className="flex items-start gap-3 flex-1 min-w-0">
-                {getStatusIcon(prospection.status)}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start gap-2 flex-wrap mb-1">
-                    <h3 className="font-semibold text-foreground text-lg leading-tight break-words whitespace-normal max-w-[240px] block">
-                      {prospection.name}
-                    </h3>
-                    {prospection.lead_score !== undefined && prospection.lead_score !== null && (
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-accent/10 text-accent font-semibold leading-tight self-start">
-                        Score {prospection.lead_score}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {prospection.arrondissement ? `${prospection.arrondissement} arr.` : prospection.city || "Adresse inconnue"}
-                    </span>
-                    {prospection.contact && (
-                      <span className="flex items-center gap-1">
-                        <Phone className="h-4 w-4" />
-                        {prospection.contact}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-foreground/80 line-clamp-2">
-                    {prospection.notes}
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 self-start w-full sm:w-auto mt-2 sm:mt-0 justify-start sm:justify-end">
-                <Badge variant={getStatusVariant(prospection.status)}>
-                  {getStatusLabel(prospection.status)}
-                </Badge>
-                <ClientRowActions
-                  clientId={prospection.id}
-                  clientName={prospection.name}
-                  onDeleted={() => {
-                    refetch();
-                    setSelectedProspection(null);
-                  }}
-                />
-              </div>
-            </div>
-            {prospection.nextAction && (
-              <div className="ml-8 mt-2 flex items-center gap-2 text-sm">
-                <Clock className="h-4 w-4 text-accent" />
-                <span className="text-accent font-medium">{prospection.nextAction}</span>
-              </div>
-            )}
-          </div>
-        ))
-        )}
-      </div>
-
-      {/* Add Client Dialog */}
-      <AddClientDialog
-        open={showAddDialog}
-        onOpenChange={setShowAddDialog}
-        onSuccess={() => {
-          refetch();
-        }}
-      />
-    </div>
+      <AddClientDialog open={showAdd} onOpenChange={setShowAdd} onSuccess={() => refetch()} />
+    </>
   );
 };
+
+function Row({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-start gap-3">
+      <div className="w-8 h-8 rounded-xl bg-[#F4F5F8] flex items-center justify-center shrink-0 text-[#1a1a2e]/50">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <p className="text-[11px] font-semibold text-[#1a1a2e]/40 uppercase tracking-wide">{label}</p>
+        <p className="text-sm text-[#1a1a2e] mt-0.5">{children}</p>
+      </div>
+    </div>
+  );
+}
 
 export default ProspectionList;

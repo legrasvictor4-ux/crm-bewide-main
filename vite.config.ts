@@ -6,11 +6,10 @@ import { componentTagger } from "lovable-tagger";
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
-    host: "::",
+    host: "0.0.0.0",
     port: 8080,
+    strictPort: false,
     hmr: {
-      host: "localhost",
-      port: 8080,
       protocol: "ws",
     },
     proxy: {
@@ -34,6 +33,25 @@ export default defineConfig(({ mode }) => ({
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-popover', '@radix-ui/react-tooltip', '@radix-ui/react-toast', '@radix-ui/react-tabs'],
+          'animation-vendor': ['framer-motion'],
+          'chart-vendor': ['recharts'],
+          'query-vendor': ['@tanstack/react-query'],
+          'supabase-vendor': ['@supabase/supabase-js'],
+          'form-vendor': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          'date-vendor': ['date-fns'],
+          'icon-vendor': ['lucide-react'],
+          'calendar-vendor': ['react-day-picker'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 400,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import TopNav from "./TopNav";
@@ -11,25 +11,28 @@ import { Bell } from "lucide-react";
 
 interface AppLayoutProps {
   title?: string;
-  breadcrumbs?: { label: string; href?: string }[];
   children: React.ReactNode;
 }
 
 interface NotificationItem {
-  id: string;
-  title: string;
+  id:      string;
+  title:   string;
   detail?: string;
   action?: string;
 }
 
 export default function AppLayout({ title, children }: AppLayoutProps) {
-  const [mobileSidebar, setMobileSidebar] = useState(false);
-  const [notifOpen,     setNotifOpen]     = useState(false);
-  const [notifs,        setNotifs]        = useState<NotificationItem[]>([]);
-  const [notifLoading,  setNotifLoading]  = useState(false);
-  const [notifError,    setNotifError]    = useState<string | null>(null);
+  const [notifOpen,    setNotifOpen]    = useState(false);
+  const [notifs,       setNotifs]       = useState<NotificationItem[]>([]);
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifError,   setNotifError]   = useState<string | null>(null);
   const navigate = useNavigate();
   useKeyboardInsets();
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => { mountedRef.current = false; };
+  }, []);
 
   const notificationsEnabled = () => localStorage.getItem("notifications_enabled") !== "false";
   const summaryEnabled       = () => localStorage.getItem("notifications_summary_enabled") !== "false";
@@ -41,6 +44,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
     fetch("/api/notifications/daily")
       .then(r => r.json())
       .then(p => {
+        if (!mountedRef.current) return;
         if (!p.success) throw new Error(p.error ?? "Erreur notifications");
         setNotifs((p.notifications ?? []).map((n: any, i: number) => ({
           id:     `${n.lead_id ?? "x"}-${i}`,
@@ -49,8 +53,8 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
           action: n.action,
         })));
       })
-      .catch(e => setNotifError(e.message))
-      .finally(() => setNotifLoading(false));
+      .catch(e => { if (mountedRef.current) setNotifError(e.message); })
+      .finally(() => { if (mountedRef.current) setNotifLoading(false); });
   }, [notifOpen]);
 
   const handleNotif = () => {
@@ -69,34 +73,31 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
 
   return (
     <SafeAreaLayout>
-      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
-      <SidebarNav isOpen={mobileSidebar} onClose={() => setMobileSidebar(false)} />
 
-      {/* ── Layout principal ─────────────────────────────────────────────── */}
+      {/* ── Sidebar desktop uniquement ─────────────────────────────── */}
+      <SidebarNav isOpen={false} onClose={() => {}} />
+
+      {/* ── Layout principal ───────────────────────────────────────── */}
       <div className="min-h-screen bg-background flex flex-col lg:ml-[252px]">
 
-        {/* Header */}
-        <TopNav
-          title={title}
-          onToggleSidebar={() => setMobileSidebar(s => !s)}
-          onNotificationsClick={handleNotif}
-        />
+        <TopNav title={title} onNotificationsClick={handleNotif} />
 
-        {/* Contenu */}
         <main
           className="flex-1 overflow-y-auto pb-[calc(var(--tabbar-height)+var(--safe-bottom)+16px)] lg:pb-8"
           role="main"
           aria-label={title ?? "Contenu principal"}
         >
-          <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-6 space-y-5">
+          <div className="max-w-[1280px] mx-auto px-4 lg:px-6 py-5 space-y-5">
             {children}
           </div>
 
           {/* Panneau notifications */}
           {notifOpen && (
             <div
-              className="fixed right-4 top-[66px] z-40 w-[min(92vw,340px)] max-h-[70vh] overflow-y-auto
-                         rounded-2xl border border-black/[0.08] bg-white shadow-xl"
+              className="fixed right-4 top-[60px] lg:top-[64px] z-40
+                         w-[min(92vw,340px)] max-h-[70vh] overflow-y-auto
+                         rounded-2xl border border-black/[0.07] bg-white
+                         shadow-[0_8px_32px_-4px_rgba(26,26,46,0.14)]"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-black/[0.06]">
                 <div className="flex items-center gap-2 text-sm font-semibold text-[#1a1a2e]">
@@ -110,7 +111,6 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
                   Fermer
                 </button>
               </div>
-
               <div className="p-4 space-y-3 text-sm">
                 {notifLoading && <p className="text-[#1a1a2e]/40">Chargement…</p>}
                 {notifError && !notifLoading && <p className="text-red-500">{notifError}</p>}
@@ -132,6 +132,7 @@ export default function AppLayout({ title, children }: AppLayoutProps) {
 
       <NativeShell />
       <AddToHomeScreenPrompt />
+
     </SafeAreaLayout>
   );
 }

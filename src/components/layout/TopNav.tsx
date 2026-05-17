@@ -1,53 +1,42 @@
-import { Bell, Menu, Search } from "lucide-react";
+import { Bell } from "lucide-react";
 
 interface Props {
   title?: string;
-  onToggleSidebar?: () => void;
   onNotificationsClick?: () => void;
 }
 
-export default function TopNav({ title, onToggleSidebar, onNotificationsClick }: Props) {
+export default function TopNav({ title, onNotificationsClick }: Props) {
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-black/[0.07] shrink-0">
-      <div className="flex items-center gap-3 px-4 lg:px-6 h-[58px]">
+    <header className="sticky top-0 z-20 bg-white border-b border-black/[0.06] shrink-0">
 
-        {/* Hamburger — mobile uniquement */}
+      {/* ── Mobile : logo centré + cloche ────────────────────────────── */}
+      <div className="lg:hidden flex items-center justify-between h-[52px] px-4">
+        <div className="w-10" />
+        <img src="/myclerk-logo.png" alt="myclerk" className="h-[28px] w-auto max-w-[160px] shrink-0" />
         <button
-          onClick={onToggleSidebar}
-          className="lg:hidden p-2 -ml-1 rounded-xl text-[#1a1a2e]/60 hover:text-[#1a1a2e] hover:bg-black/5 transition"
-          aria-label="Ouvrir le menu"
+          onClick={onNotificationsClick}
+          className="w-10 h-10 flex items-center justify-center rounded-xl
+                     text-[#1a1a2e]/45 hover:text-[#1a1a2e] hover:bg-black/[0.04] transition"
+          aria-label="Notifications"
         >
-          <Menu className="h-5 w-5" />
+          <Bell className="h-[18px] w-[18px]" />
         </button>
+      </div>
 
-        {/* Logo centré — mobile uniquement */}
-        <div className="flex-1 flex justify-center lg:hidden">
-          <img src="/myclerk-logo.png" alt="myclerk" className="h-6 w-auto" />
-        </div>
-
-        {/* Titre de page — desktop uniquement */}
-        <h1 className="hidden lg:block text-[15px] font-semibold text-[#1a1a2e] flex-1 truncate">
+      {/* ── Desktop : titre + cloche ──────────────────────────────────── */}
+      <div className="hidden lg:flex items-center h-[56px] px-6 gap-3">
+        <h1 className="flex-1 text-[15px] font-semibold text-[#1a1a2e] truncate">
           {title ?? "myclerk"}
         </h1>
-
-        {/* Actions à droite */}
-        <div className="flex items-center gap-1">
-          <button
-            className="p-2 rounded-xl text-[#1a1a2e]/50 hover:text-[#1a1a2e] hover:bg-black/5 transition"
-            aria-label="Rechercher"
-          >
-            <Search className="h-[18px] w-[18px]" />
-          </button>
-          <button
-            onClick={onNotificationsClick}
-            className="relative p-2 rounded-xl text-[#1a1a2e]/50 hover:text-[#1a1a2e] hover:bg-black/5 transition"
-            aria-label="Notifications"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-          </button>
-        </div>
-
+        <button
+          onClick={onNotificationsClick}
+          className="p-2 rounded-xl text-[#1a1a2e]/45 hover:text-[#1a1a2e] hover:bg-black/[0.04] transition"
+          aria-label="Notifications"
+        >
+          <Bell className="h-[18px] w-[18px]" />
+        </button>
       </div>
+
     </header>
   );
 }

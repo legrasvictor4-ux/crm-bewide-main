@@ -53,20 +53,6 @@ function ScoreRing({ score }: { score: number }) {
   );
 }
 
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-  const copy = () => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-  return (
-    <button onClick={copy} className="p-1.5 rounded-lg text-gray-400 hover:text-[#1a1a2e] hover:bg-black/5 transition">
-      {copied ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-    </button>
-  );
-}
-
 // ─── Page principale ──────────────────────────────────────────────────────────
 export default function Scout() {
   const fileRef        = useRef<HTMLInputElement>(null);
@@ -171,9 +157,10 @@ export default function Scout() {
     if (!result || added) return;
     mutation.mutate({
       last_name: result.business.name,
-      status:    "new",
+      status:             "prospect",
+      statut_opportunite: result.intelligence.score >= 70 ? "chaud" : result.intelligence.score >= 40 ? "tiède" : "froid",
+      canal_acquisition:  "terrain",
       phone:     result.business.formatted_phone_number ?? null,
-      city:      result.business.formatted_address?.split(",").at(-2)?.trim() ?? null,
       notes: [
         `Scout IA — Score opportunité : ${result.intelligence.score}/100`,
         result.intelligence.verdict,

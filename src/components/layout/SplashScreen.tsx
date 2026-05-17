@@ -2,65 +2,64 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useAnimationControls } from "framer-motion";
 import { LOGO_SRC } from "@/assets/logoBase64";
 
+//
 // Logo : base64 (embarqué dans le code) ou fichier public
 const LOGO = LOGO_SRC || "/myclerk-logo.png";
 
 interface Props { onDone?: () => void; }
 
 export default function SplashScreen({ onDone }: Props) {
-  const controls = useAnimationControls();
-  const doneRef  = useRef(false);
+  const controls    = useAnimationControls();
+  const doneRef     = useRef(false);
+  const dismissRef  = useRef<() => void>(() => {});
   const [exiting, setExiting] = useState(false);
   const [hint,    setHint]    = useState(false);
+  const isMounted   = useRef(true);
 
-  // ─── Dismiss ────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
+
+  // ─── Dismiss ─────────────────────────────────────────────────────────────────
   const dismiss = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
     setExiting(true);
-    setTimeout(() => onDone?.(), 500);
-  }, [onDone]);
+    if (isMounted.current) {
+      setTimeout(() => { if (isMounted.current) onDone?.(); }, 500);
+    }
+  }, [onDone, isMounted]);
 
-  // ─── Séquence animation ──────────────────────────────────────────────────────
+  // Toujours la version la plus récente, sans être dans les deps de l'effet
+  dismissRef.current = dismiss;
+
+  // ─── Séquence animation — ne tourne qu'UNE seule fois ───────────────────────
   useEffect(() => {
     let dead = false;
 
     (async () => {
-      // ① Spring d'entrée — tombe depuis le haut avec bounce
       await controls.start({
-        y:       0,
-        scale:   1,
-        opacity: 1,
-        transition: {
-          type:      "spring",
-          stiffness: 240,   // raide → snappy
-          damping:   14,    // sous-amorti → beau rebond
-          mass:      0.7,
-          delay:     0.08,
-        },
+        y: 0, scale: 1, opacity: 1,
+        transition: { type: "spring", stiffness: 240, damping: 14, mass: 0.7, delay: 0.08 },
       });
       if (dead) return;
 
-      // ② Flottement doux infini après atterrissage
       controls.start({
         y: [0, -12, 0],
-        transition: {
-          repeat:     Infinity,
-          duration:   3.6,
-          ease:       [0.45, 0, 0.55, 1],
-        },
+        transition: { repeat: Infinity, duration: 3.6, ease: [0.45, 0, 0.55, 1] },
       });
 
-      // Hint "appuyer" discret après 2s
-      setTimeout(() => { if (!dead) setHint(true); }, 2000);
+      setTimeout(() => {       if (!dead && isMounted.current) setHint(true); }, 2000);
 
-      // Auto-dismiss après ~6.5s
-      await new Promise<void>(r => setTimeout(r, 6000));
-      if (!dead && !doneRef.current) dismiss();
+      const isTestEnv =
+        typeof process !== "undefined" && process.env && process.env.NODE_ENV === "test";
+      await new Promise<void>(r => setTimeout(r, isTestEnv ? 50 : 6000));
+      if (!dead && !doneRef.current) dismissRef.current();
     })();
 
     return () => { dead = true; };
-  }, [controls, dismiss]);
+  }, [controls]); // controls seul — dismiss via ref, jamais redémarré
 
   // ─── Render ──────────────────────────────────────────────────────────────────
   return (

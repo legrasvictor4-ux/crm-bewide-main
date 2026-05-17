@@ -1,7 +1,7 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { AuthProvider } from "@/context/AuthContext";
-import Login from "@/pages/Login";
-import { vi } from "vitest";
+import { AuthProvider } from "../../src/context/AuthContext";
+import Login from "../../src/pages/Login";
+import { vi, describe, it, expect } from "vitest";
 
 vi.mock("@/context/AuthContext", async () => {
   const actual = await vi.importActual<any>("@/context/AuthContext");
@@ -28,8 +28,8 @@ describe("Login page", () => {
         <Login />
       </AuthProvider>
     );
-    fireEvent.change(screen.getByPlaceholderText(/vous@example.com/i), { target: { value: "test@example.com" } });
-    fireEvent.change(screen.getByPlaceholderText(/\*\*\*\*/i), { target: { value: "secret" } });
+    fireEvent.change(screen.getByPlaceholderText(/email@myclerk\.app/i), { target: { value: "test@example.com" } });
+    fireEvent.change(screen.getByPlaceholderText(/••••••••/i), { target: { value: "secret" } });
     fireEvent.click(screen.getByTestId("login-submit"));
     await waitFor(() => expect(screen.queryByText(/Échec de la connexion/i)).not.toBeInTheDocument());
   });
@@ -40,7 +40,11 @@ describe("Login page", () => {
         <Login />
       </AuthProvider>
     );
-    expect(screen.getByText(/Continuer avec Google/i)).toBeInTheDocument();
-    expect(screen.getByText(/Continuer avec Apple/i)).toBeInTheDocument();
+
+    const skipBtn = screen.queryByRole("button", { name: /Passer/i });
+    if (skipBtn) fireEvent.click(skipBtn);
+
+    expect(screen.getByText(/Se connecter avec Google/i)).toBeInTheDocument();
+    expect(screen.getByText(/Se connecter avec Apple/i)).toBeInTheDocument();
   });
 });

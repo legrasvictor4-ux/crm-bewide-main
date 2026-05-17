@@ -4,7 +4,7 @@ import { buildProspectFromTranscript, findMatchByCompanyOrContact } from './voic
 import { computeLeadScore } from '../../server/leadScoreService.js';
 
 export function createVoiceRouter(deps) {
-  const { memoryDb, supabase, useMemoryStore } = deps;
+  const { memoryDb, supabase, useMemoryStore, fetchClients } = deps;
   const router = express.Router();
 
   router.post('/ingest', async (req, res, next) => {
@@ -19,10 +19,12 @@ export function createVoiceRouter(deps) {
       if (useMemoryStore) {
         const clients = memoryDb.listClients();
         existing = findMatchByCompanyOrContact(clients, transcript);
-      } else if (supabase) {
-        const { data, error } = await supabase.from('clients').select('*').limit(50);
-        if (error) throw error;
-        existing = findMatchByCompanyOrContact(data || [], transcript);
+      } else {
+        if (!fetchClients) {
+          return res.status(500).json({ success: false, error: 'fetchClients not configured' });
+        }
+        const clients = await fetchClients({ minScore: 0, sortByScore: false, search: transcript });
+        existing = findMatchByCompanyOrContact(clients || [], transcript);
       }
 
       if (existing) {
@@ -54,22 +56,87 @@ export function createVoiceRouter(deps) {
       };
       const lead_score = computeLeadScore(leadScoreInput);
 
-      const clientData = {
-        company: record.company,
-        address: record.address,
-        postal_code: record.postalCode,
-        city: record.city,
-        status: record.status,
-        client_since: record.clientSince || null,
-        opportunity_score: record.opportunityScore || null,
-        primary_contact: record.primaryContact,
-        secondary_contact: record.secondaryContact || null,
-        additional_contacts: record.additionalContacts || [],
-        social: record.social || {},
-        appointment: record.appointment || null,
-        additional_appointments: record.additionalAppointments || [],
+      // ── Mapping strict vers Supabase clients (anti "champ fantôme") ──
+      // ClientSchema/Supabase attend des clés snake_case type:
+      // first_name, last_name, email, phone, company, address, postal_code, arrondissement,
+      // contact, status, type_etablissement, role, statut_opportunite, priorite, notes, next_action, etc.
+      // Ici, le record (voiceUtils) n’a pas exactement la même forme, donc on mappe
+      // uniquement les champs sûrs et on drop tout inconnu.
+
+      const CLIENT_KEYS_WHITELIST = [
+        "id",
+        "first_name",
+        "last_name",
+        "email",
+        "phone",
+        "company",
+        "address",
+        "postal_code",
+        "arrondissement",
+        "contact",
+        "status",
+        "type_etablissement",
+        "role",
+        "statut_opportunite",
+        "priorite",
+        "motif_objection",
+        "date_relance",
+        "offre_cible",
+        "canal_acquisition",
+        "notes",
+        "next_action",
+        "date_created",
+        "date_updated",
+        "imported_at",
+        "source_file",
+        "enrichment_data",
+        "business_description",
+        "segmentation",
+        "lead_score",
+        "enriched_at",
+        "metadata"
+      ];
+
+      const lastNameFromPrimary =
+        (record.primaryContact && (record.primaryContact.name || record.primaryContact.phone)) ||
+        record.company ||
+        "Prospect";
+
+      const firstNameGuess = (() => {
+        const n = (record.primaryContact && record.primaryContact.name) || "";
+        const parts = String(n).trim().split(/\s+/).filter(Boolean);
+        return parts.length > 1 ? parts.slice(0, -1).join(" ") : null;
+      })();
+
+      const clientDataRaw = {
+        company: record.company || null,
+        address: record.address || null,
+        postal_code: record.postalCode || null,
+        status: record.status || "prospect",
+        first_name: firstNameGuess,
+        last_name: String(lastNameFromPrimary || "Prospect").trim(),
+
+        // depuis voiceUtils on a seulement primaryContact.{name,phone,email,role?}
+        contact: (record.primaryContact && record.primaryContact.phone) ? record.primaryContact.phone : null,
+        role: (record.primaryContact && record.primaryContact.role) ? record.primaryContact.role : null,
+        email: (record.primaryContact && record.primaryContact.email) ? record.primaryContact.email : null,
+        phone: (record.primaryContact && record.primaryContact.phone) ? record.primaryContact.phone : null,
+
+        // statut/opportunité : voiceUtils ne donne pas exactement ces clés;
+        // on les laisse null plutôt que d’injecter un champ fantôme.
+        statut_opportunite: null,
+        priorite: null,
+
+        notes: record.summary ? String(record.summary).slice(0, 3000) : String(transcript).slice(0, 3000),
+
         lead_score,
+
+        metadata: { source: "voice_controller", transcript_len: String(transcript).length }
       };
+
+      const clientData = Object.fromEntries(
+        Object.entries(clientDataRaw).filter(([k]) => CLIENT_KEYS_WHITELIST.includes(k))
+      );
 
       // Save
       if (useMemoryStore) {
@@ -81,9 +148,11 @@ export function createVoiceRouter(deps) {
         return res.status(500).json({ success: false, error: 'Database not configured' });
       }
 
-      const { data, error } = await supabase.from('clients').insert(clientData).select().single();
-      if (error) throw error;
-      return res.status(201).json({ success: true, status: 'created', client: data });
+      if (!deps.createClient) {
+        return res.status(500).json({ success: false, error: 'createClient not configured' });
+      }
+      const created = await deps.createClient(clientData);
+      return res.status(201).json({ success: true, status: 'created', client: created });
     } catch (error) {
       if (error.validationErrors) {
         return res.status(400).json({ success: false, error: 'Validation failed', validationErrors: error.validationErrors });

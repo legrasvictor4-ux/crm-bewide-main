@@ -38,15 +38,13 @@ const SpeedProspecting = () => {
         if (data.success && data.clients) {
           // Transform clients to prospects format
           const transformed = data.clients.map((client): Prospect => {
-            const leadScore = typeof client.lead_score === "number" ? client.lead_score : 50;
-            const status = (client.status as Prospect["status"]) || "cold";
             return {
               id: String(client.id),
-              name: `${client.first_name || ''} ${client.last_name || ''}`.trim() || 'Client',
-              company: (client.company as string) || '',
+              name: (client.name as string) || (client as any).last_name || 'Client',
+              company: '',
               phone: (client.phone as string) || '',
-              score: leadScore,
-              status: status === 'to_recontact' ? 'hot' : status === 'pending' ? 'warm' : 'cold'
+              score: 0,
+              status: 'cold'
             };
           });
           setProspects(transformed);
@@ -216,14 +214,8 @@ const SpeedProspecting = () => {
             <p className="text-xl text-muted-foreground">{currentProspect.company}</p>
           </div>
           
-          <div className="text-4xl font-mono font-bold text-primary">
+              <div className="text-4xl font-mono font-bold text-primary">
             {currentProspect.phone}
-          </div>
-
-          <div className="flex justify-center gap-2">
-            <Badge variant="outline" className="text-lg px-4 py-2">
-              Score: {currentProspect.score}%
-            </Badge>
           </div>
         </CardContent>
       </Card>

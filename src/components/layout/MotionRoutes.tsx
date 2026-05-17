@@ -8,7 +8,7 @@ const variants = {
   exit: { opacity: 0, x: -40 },
 };
 
-const MotionRoutes = ({ children }: PropsWithChildren) => {
+function MotionRoutes({ children }: PropsWithChildren) {
   const location = useLocation();
 
   return (
@@ -26,6 +26,6 @@ const MotionRoutes = ({ children }: PropsWithChildren) => {
       </motion.div>
     </AnimatePresence>
   );
-};
+}
 
 export default MotionRoutes;

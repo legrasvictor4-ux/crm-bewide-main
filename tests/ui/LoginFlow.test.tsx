@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { vi } from "vitest";
-import App from "@/App";
-import Login from "@/pages/Login";
-import { AuthProvider } from "@/context/AuthContext";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import App from "../../src/App";
+import Login from "../../src/pages/Login";
+import { AuthProvider } from "../../src/context/AuthContext";
 
 vi.mock("@/context/AuthContext", async () => {
   const actual = await vi.importActual<any>("@/context/AuthContext");
@@ -33,8 +33,13 @@ describe("Login flow", () => {
   it("redirects to login when no token", async () => {
     window.history.pushState({}, "", "/");
     render(<App />);
+
+    // Fermer l'intro si elle est affichée
+    const skipBtn = screen.queryByRole("button", { name: /Passer/i });
+    if (skipBtn) fireEvent.click(skipBtn);
+
     await waitFor(() => {
-      expect(screen.getByText(/Connexion CRM/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
     });
   });
 
@@ -44,8 +49,13 @@ describe("Login flow", () => {
         <Login />
       </AuthProvider>
     );
-    const googleBtn = screen.getByText(/Continuer avec Google/i);
+
+    const skipBtn = screen.queryByRole("button", { name: /Passer/i });
+    if (skipBtn) fireEvent.click(skipBtn);
+
+    const googleBtn = screen.getByText(/Se connecter avec Google/i);
     fireEvent.click(googleBtn);
+
     await waitFor(() => {
       expect(screen.queryByText(/Echec de la connexion/i)).not.toBeInTheDocument();
     });

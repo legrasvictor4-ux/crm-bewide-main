@@ -148,7 +148,7 @@ const Login = () => {
             <button
               onClick={closeParallax}
               className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/5 px-3 py-1.5 text-xs text-blue-100 hover:bg-white/10 border border-white/10 transition"
-              aria-label="Fermer l’intro"
+            aria-label="Passer"
             >
               Passer
             </button>
@@ -257,7 +257,7 @@ const Login = () => {
 
             <div className="space-y-3">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground">Email</label>
+                <label className="text-xs font-medium text-muted-foreground" htmlFor="login-email">Email</label>
                 <div className="relative">
                   <Mail className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
                   <Input
@@ -367,6 +367,15 @@ const Login = () => {
               onClick={() => handleLogin({ provider: "google" })}
             >
               <img src={googleLogo} alt="Google" className="h-4 w-4" /> Se connecter avec Google
+            </Button>
+
+            <Button
+              variant="outline"
+              className="w-full h-11 rounded-xl justify-start gap-2 bg-white/80 border border-white/50 dark:bg-white/5 dark:border-slate-800 backdrop-blur"
+              disabled={loading}
+              onClick={() => handleLogin({ provider: "apple" })}
+            >
+              <img src="/myclerk-logo.png" alt="Apple" className="h-4 w-4" /> Se connecter avec Apple
             </Button>
 
             <div className="text-center text-xs text-muted-foreground space-y-1">

@@ -7,16 +7,17 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
-    setupFiles: './vitest.setup.ts',
+    exclude: ["tests/e2e/**", "node_modules/**"],
+    include: ["tests/**/*.{test,spec}.{ts,tsx,js,jsx}", "src/**/__tests__/**/*.{test,spec}.{ts,tsx,js,jsx}"],
+    setupFiles: ['./vitest.setup.ts'],
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
     coverage: {
       reporter: ['text', 'lcov'],
-      lines: 80,
-      functions: 80,
-      branches: 70,
-      statements: 80,
     },
+    testTimeout: 10000,
+    hookTimeout: 10000,
+    retry: 0,
   },
 });

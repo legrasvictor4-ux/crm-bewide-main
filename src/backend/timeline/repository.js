@@ -1,5 +1,16 @@
 import crypto from 'crypto';
 
+/**
+ * Colonnes explicites autorises pour la table accounts (TimelineAccountState).
+ * .select('*') interdit pour ne pas exposer de colonnes non declarees dans le schema.
+ */
+const ACCOUNT_COLUMNS = 'id, name, lead_score, current_status, closing_probability, last_interaction_at, next_action_at, created_at, updated_at';
+
+/**
+ * Colonnes explicites autorises pour la table events.
+ */
+const EVENT_COLUMNS = 'id, account_id, event_type, raw_input_text, structured_data, created_at, created_by';
+
 export function createTimelineRepository({ supabase, useMemoryStore }) {
   const memory = {
     accounts: [],
@@ -60,7 +71,7 @@ export function createTimelineRepository({ supabase, useMemoryStore }) {
       if (useMemoryStore || !supabase) {
         return memory.accounts.find((a) => a.id === id) || null;
       }
-      const { data, error } = await supabase.from('accounts').select('*').eq('id', id).single();
+      const { data, error } = await supabase.from('accounts').select(ACCOUNT_COLUMNS).eq('id', id).single();
       if (error && error.code !== 'PGRST116') throw error;
       return data || null;
     },
@@ -74,7 +85,7 @@ export function createTimelineRepository({ supabase, useMemoryStore }) {
       }
       const { data, error } = await supabase
         .from('events')
-        .select('*')
+        .select(EVENT_COLUMNS)
         .eq('account_id', accountId)
         .order('created_at', { ascending: false })
         .limit(limit);

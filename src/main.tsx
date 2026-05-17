@@ -1,13 +1,21 @@
+import "./lib/instrument";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { bootLog } from "./lib/bootstrapLogger";
 
-createRoot(document.getElementById("root")!).render(<App />);
+bootLog("boot", true);
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .catch((err) => console.error("Service worker registration failed", err));
-  });
+const ROOT_SELECTOR = "#root";
+
+function renderApp(): void {
+  const rootEl = document.querySelector(ROOT_SELECTOR);
+  if (!rootEl) {
+    document.title = "Erreur";
+    document.body.innerHTML = `<div id="root-error"><h1>Erreur de chargement</h1><p>Impossible de charger l'application. Veuillez rafraîchir la page.</p></div>`;
+    return;
+  }
+  createRoot(rootEl).render(<App />);
 }
+
+renderApp();

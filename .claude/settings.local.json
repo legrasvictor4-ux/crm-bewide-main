@@ -23,7 +23,8 @@
       "PowerShell(Get-ChildItem \"C:\\\\Users\\\\jfleg\\\\Downloads\" | Where-Object { $_.Name -match \"crm-bewide\" } | Select-Object Name, FullName)",
       "Bash(ls /mnt/c/Users/jfleg/Downloads/ 2>/dev/null | grep -i \"crm\\\\|google\\\\|bewide\\\\|vision\" || ls /mnt/c/Users/jfleg/Downloads/ 2>/dev/null | head -20)",
       "Read(//mnt/c/Users/jfleg/**)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Bash(node -e \"require\\('fs'\\).existsSync\\('node_modules'\\) ? console.log\\('EXISTS'\\) : console.log\\('MISSING'\\)\")"
     ]
   }
 }

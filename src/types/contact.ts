@@ -62,7 +62,6 @@ export const contactRecordSchema = z.object({
   company: z.string().min(1, "Entreprise requise"),
   address: z.string().min(1, "Adresse requise"),
   postalCode: z.string().min(2, "Code postal requis"),
-  city: z.string().min(1, "Ville requise"),
   status: z.enum(["client", "prospect"]),
   clientSince: z.string().optional(),
   opportunityScore: z.number().int().min(1, "Score min 1").max(10, "Score max 10").optional(),
@@ -73,3 +72,5 @@ export const contactRecordSchema = z.object({
   appointment: appointmentSchema.optional(),
   additionalAppointments: z.array(additionalAppointmentSchema).optional(),
 });
+
+export type ContactRecord = z.infer<typeof contactRecordSchema>;

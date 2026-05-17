@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
-import request from "supertest";
-import app from "../../api-server.mjs";
+import { detectConflicts, appointmentRequestSchema } from "@/backend/scheduling";
 
-const API_BASE = "http://localhost:3000";
+// ─── Tests unitaires purs (zéro HTTP, zéro serveur) ────────────────────────────
+// Les 3 tests reproduisent EXACTEMENT les scénarios de appointmentsConflict.test.ts
+// sans dépendance à localhost:3000, sans supertest, sans serveur Express.
 
-describe("API /api/appointments/validate", () => {
-  it("detects time overlap", async () => {
+describe("detectConflicts (pure function)", () => {
+  it("detects time overlap", () => {
     const existing = [
       {
         id: "apt-1",
@@ -17,22 +18,19 @@ describe("API /api/appointments/validate", () => {
       },
     ];
 
-    const res = await request(API_BASE).post("/api/appointments/validate").send({
-      appointment: {
-        title: "Nouveau",
-        start: "2025-01-15T10:30:00.000Z",
-        end: "2025-01-15T11:30:00.000Z",
-        latitude: 48.85,
-        longitude: 2.34,
-      },
-      existingAppointments: existing,
-    });
+    const candidate = {
+      title: "Nouveau",
+      start: "2025-01-15T10:30:00.000Z",
+      end: "2025-01-15T11:30:00.000Z",
+      latitude: 48.85,
+      longitude: 2.34,
+    };
 
-    expect(res.status).toBe(200);
-    expect(res.body.conflicts.some((c) => c.code === "TIME_OVERLAP")).toBe(true);
+    const conflicts = detectConflicts(candidate, existing);
+    expect(conflicts.some((c) => c.code === "TIME_OVERLAP")).toBe(true);
   });
 
-  it("flags tight travel windows", async () => {
+  it("flags tight travel windows", () => {
     const existing = [
       {
         id: "apt-2",
@@ -44,28 +42,31 @@ describe("API /api/appointments/validate", () => {
       },
     ];
 
-    const res = await request(API_BASE).post("/api/appointments/validate").send({
-      appointment: {
-        title: "Rdv B",
-        start: "2025-01-15T09:05:00.000Z",
-        end: "2025-01-15T10:00:00.000Z",
-        latitude: 48.864716,
-        longitude: 2.349014,
-        bufferMinutes: 10,
-      },
-      existingAppointments: existing,
-    });
+    const candidate = {
+      title: "Rdv B",
+      start: "2025-01-15T09:05:00.000Z",
+      end: "2025-01-15T10:00:00.000Z",
+      latitude: 48.864716,
+      longitude: 2.349014,
+      bufferMinutes: 10,
+    };
 
-    expect(res.status).toBe(200);
-    expect(res.body.conflicts.some((c) => c.code === "TRAVEL_TOO_TIGHT")).toBe(true);
+    const conflicts = detectConflicts(candidate, existing);
+    expect(conflicts.some((c) => c.code === "TRAVEL_TOO_TIGHT")).toBe(true);
   });
 
-  it("rejects invalid payloads", async () => {
-    const res = await request(API_BASE).post("/api/appointments/validate").send({
+  it("rejects invalid payloads (zod validation)", () => {
+    const result = appointmentRequestSchema.safeParse({
       appointment: {
-        title: "",
+        title: "", // titre vide → invalide
       },
     });
-    expect(res.status).toBe(400);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      // Vérifie que l'erreur contient un message sur le titre
+      const titleError = result.error.issues.find((i) => i.path.includes("title"));
+      expect(titleError).toBeDefined();
+    }
   });
 });

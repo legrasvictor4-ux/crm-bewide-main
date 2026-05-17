@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { Mail, Phone, MoreHorizontal, Eye, Edit, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/drawer";
 import { useDeleteClient } from "@/hooks/use-clients";
 import { toast } from "sonner";
+import { useIsMounted } from "@/hooks/useSafeEffect";
+import { useCleanup } from "@/hooks/useCleanup";
 
 interface ClientRowActionsProps {
   clientId: string;
@@ -27,21 +29,23 @@ interface ClientRowActionsProps {
 const ClientRowActions = ({ clientId, clientName, onDeleted }: ClientRowActionsProps) => {
   const [isMobile, setIsMobile] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const mounted = useIsMounted();
   const { mutateAsync: deleteClient, isPending } = useDeleteClient();
 
   useEffect(() => {
-    const update = () => setIsMobile(window.innerWidth < 768);
+    const update = () => { if (mounted.current) setIsMobile(window.innerWidth < 768); };
     update();
     window.addEventListener("resize", update);
     return () => window.removeEventListener("resize", update);
-  }, []);
+  }, [mounted]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     await deleteClient(clientId);
+    if (!mounted.current) return;
     toast.success("Client supprimé");
     onDeleted?.();
     setSheetOpen(false);
-  };
+  }, [deleteClient, clientId, mounted, onDeleted]);
 
   const actionButtons = (
     <>

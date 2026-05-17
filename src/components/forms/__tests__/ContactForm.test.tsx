@@ -1,12 +1,12 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ContactForm from "../ContactForm";
 import { ContactRecord, contactRecordSchema } from "@/types/contact";
+import { describe, it, expect, vi } from "vitest";
 
 const baseContact: ContactRecord = {
   company: "ACME",
   address: "1 rue",
   postalCode: "75000",
-  city: "Paris",
   status: "prospect",
   opportunityScore: 5,
   primaryContact: { name: "Jean", role: "CEO", phone: "0102030405", email: "jean@example.com" },
@@ -18,7 +18,7 @@ describe("ContactForm", () => {
     render(<ContactForm onSubmit={handleSubmit} />);
     fireEvent.click(screen.getByTestId("submit-contact"));
     await waitFor(() => {
-      expect(screen.getByText(/Entreprise requise/i)).toBeInTheDocument();
+      expect(screen.queryByText(/Entreprise requise/i)).not.toBeNull();
     });
     expect(handleSubmit).not.toHaveBeenCalled();
   });
@@ -31,7 +31,6 @@ describe("ContactForm", () => {
     fireEvent.change(screen.getByTestId("company"), { target: { value: baseContact.company } });
     fireEvent.change(screen.getByTestId("address"), { target: { value: baseContact.address } });
     fireEvent.change(screen.getByTestId("postalCode"), { target: { value: baseContact.postalCode } });
-    fireEvent.change(screen.getByTestId("city"), { target: { value: baseContact.city } });
     fireEvent.change(screen.getByTestId("status"), { target: { value: baseContact.status } });
     fireEvent.change(screen.getByTestId("opportunityScore"), { target: { value: baseContact.opportunityScore } });
     fireEvent.change(screen.getByTestId("primaryContact.name"), { target: { value: baseContact.primaryContact.name } });

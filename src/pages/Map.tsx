@@ -31,7 +31,7 @@ const Map = () => {
           const latNum = typeof rawLat === "number" ? rawLat : Number(rawLat);
           const lngNum = typeof rawLng === "number" ? rawLng : Number(rawLng);
           const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
-          const address = [client.address, client.postal_code, client.city].filter(Boolean).join(" ") || null;
+          const address = [client.address, client.postal_code].filter(Boolean).join(" ") || null;
 
           return {
             id: client.id,

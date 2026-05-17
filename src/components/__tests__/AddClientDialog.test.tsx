@@ -20,6 +20,7 @@ vi.mock("sonner", () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    info: vi.fn(),
   },
 }));
 
@@ -95,13 +96,17 @@ describe("AddClientDialog", () => {
     expect(onSuccess).toHaveBeenCalledTimes(1);
   });
 
-  it("remplit et soumet via dictée quand les champs requis sont présents", async () => {
+  it("remplit les champs via dictée et affiche la bannière de révision", async () => {
     setup();
-    MockSpeechRecognition.transcript = "Jean Dupont téléphone 06 12 34 56 78 email jean@test.com excellent prospect";
-    MockSpeechRecognition.interim = "Jean Dupont téléphone 06";
+    MockSpeechRecognition.transcript = "Restaurant Chez Paul, Lyon 3ème, intéressé, rappeler vendredi";
+    MockSpeechRecognition.interim = "Restaurant Chez Paul,";
     fireEvent.click(screen.getByText(/Dicter les champs/i));
-    await waitFor(() => expect(mutateSpy).toHaveBeenCalledTimes(1));
+    // Vérifie que la bannière de révision s'affiche
+    await waitFor(() => expect(screen.getByText(/Champs pré-remplis par dictée/i)).toBeInTheDocument());
     expect(screen.getByText(/Transcription/i)).toBeInTheDocument();
+    // L'utilisateur doit cliquer manuellement pour soumettre
+    fireEvent.click(screen.getByText(/Creer le client/i));
+    await waitFor(() => expect(mutateSpy).toHaveBeenCalledTimes(1));
   });
 
   it("affiche une erreur de dictee lorsque le micro est refuse", async () => {

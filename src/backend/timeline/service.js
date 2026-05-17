@@ -31,7 +31,6 @@ export async function createTimelineEvent(payload, deps) {
     : await repository.createAccount({
         name: accountName || 'Prospect',
         category: null,
-        city: null,
         current_status: 'new',
         lead_score: 0,
         closing_probability: 0,

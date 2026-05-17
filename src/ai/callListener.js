@@ -12,6 +12,7 @@ class CallListener {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       this.mediaRecorder = new MediaRecorder(stream);
+      this.mediaStream = stream;
       this.setupEventListeners();
       console.log('AI Call Listener initialisé');
     } catch (error) {
@@ -120,7 +121,11 @@ class CallListener {
   }
 
   showListeningIndicator(show) {
-    // Créer ou mettre à jour l'indicateur d'écoute
+    if (this._indicatorTimeout) {
+      clearTimeout(this._indicatorTimeout);
+      this._indicatorTimeout = null;
+    }
+
     let indicator = document.getElementById('ai-listener-indicator');
     
     if (show) {
@@ -140,8 +145,40 @@ class CallListener {
       indicator.textContent = '🔊 AI listening for call analysis...';
     } else if (indicator) {
       indicator.textContent = '✅ Call analysis complete';
-      setTimeout(() => indicator.remove(), 3000);
+      this._indicatorTimeout = setTimeout(() => {
+        this._indicatorTimeout = null;
+        try {
+          if (indicator && indicator.isConnected && indicator.parentNode) {
+            indicator.remove();
+          }
+        } catch {
+          // no-op
+        }
+      }, 3000);
     }
+  }
+}
+
+  destroy() {
+    this.stopListening();
+    if (this._indicatorTimeout) {
+      clearTimeout(this._indicatorTimeout);
+      this._indicatorTimeout = null;
+    }
+    const indicator = document.getElementById('ai-listener-indicator');
+    if (indicator && indicator.parentNode) {
+      indicator.remove();
+    }
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
+    }
+    if (this.mediaStream) {
+      this.mediaStream.getTracks().forEach((t) => t.stop());
+    }
+    this.mediaRecorder = null;
+    this.audioChunks = [];
+    this.callInProgress = false;
+    this.isListening = false;
   }
 }
 

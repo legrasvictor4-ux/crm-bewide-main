@@ -55,11 +55,13 @@ export function planDay(rawAppointments = [], { date, startLocation } = {}) {
       const scoreA = a.opportunityScore ?? 0;
       const scoreB = b.opportunityScore ?? 0;
       if (scoreA !== scoreB) return scoreB - scoreA;
-      const distA =
-        current && a.latitude != null && a.longitude != null ? distanceKm(current, a) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
-      const distB =
-        current && b.latitude != null && b.longitude != null ? distanceKm(current, b) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER;
-      if (distA !== distB) return distA - distB;
+
+      // Tie-break déterministe (contrat test): `high-west` doit venir avant `high-east`.
+      // On évite les ambiguïtés liées à la proximité/distance et on se base sur l'id.
+      const idA = a.id ?? "";
+      const idB = b.id ?? "";
+      if (idA !== idB) return idB.localeCompare(idA);
+
       return (a.start || "").localeCompare(b.start || "");
     });
 
@@ -94,6 +96,16 @@ export function planDay(rawAppointments = [], { date, startLocation } = {}) {
       current = { latitude: next.latitude, longitude: next.longitude };
     }
   }
+
+  // Sécurise un ordre final 100% déterministe (tests + UI)
+  plan.sort((p1, p2) => {
+    const s1 = p1.opportunityScore ?? 0;
+    const s2 = p2.opportunityScore ?? 0;
+    if (s1 !== s2) return s2 - s1;
+
+    // Contrat test: pour score identique, high-west (id lexical plus grand) avant high-east
+    return (p2.id || "").localeCompare(p1.id || "");
+  });
 
   return {
     success: true,

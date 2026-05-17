@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, ShieldAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { validateAppointment, type AppointmentPayload } from "@/services/scheduling";
 
 interface ContactFormProps {
@@ -35,7 +35,6 @@ const ContactForm = ({
       company: "",
       address: "",
       postalCode: "",
-      city: "",
       status: "prospect" as const,
       opportunityScore: 5,
       primaryContact: { name: "", role: "", phone: "", email: "" },
@@ -54,16 +53,21 @@ const ContactForm = ({
     defaultValues: baseDefaults,
   });
 
+  // Track previous defaultValues reference → only reset form when defaults actually change
+  const prevDefaultsRef = useRef(defaultValues);
   useEffect(() => {
-    form.reset(baseDefaults);
-  }, [baseDefaults, form]);
+    if (prevDefaultsRef.current !== defaultValues) {
+      prevDefaultsRef.current = defaultValues;
+      form.reset(baseDefaults);
+    }
+  }, [defaultValues, baseDefaults, form]);
 
   useEffect(() => {
     if (baseDefaults.appointment?.date) {
       void validateScheduling(baseDefaults as ContactRecord);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [baseDefaults.appointment?.date, baseDefaults.address, baseDefaults.city]);
+  }, [baseDefaults.appointment?.date, baseDefaults.address]);
 
   const {
     fields: additionalContacts,
@@ -113,8 +117,8 @@ const ContactForm = ({
     }
     const payload: AppointmentPayload = {
       title: data.company,
-      start: data.appointment.date,
-      end: data.appointment.nextDate || data.appointment.date,
+      start: data.appointment.date ?? "",
+      end: data.appointment.nextDate ?? data.appointment.date ?? "",
       address: data.address,
       latitude: undefined,
       longitude: undefined,
@@ -194,13 +198,6 @@ const ContactForm = ({
             )}
           </div>
           <div className="space-y-2">
-            <Label htmlFor="city">Ville</Label>
-            <Input id="city" {...form.register("city")} data-testid="city" />
-            {form.formState.errors.city && (
-              <p className="text-destructive text-sm">{form.formState.errors.city.message}</p>
-            )}
-          </div>
-          <div className="space-y-2">
             <Label htmlFor="opportunityScore">Score opportunité (1-10)</Label>
             <Input
               id="opportunityScore"
@@ -258,12 +255,24 @@ const ContactForm = ({
           <CardTitle>Contact secondaire (optionnel)</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <Input placeholder="Nom" {...form.register("secondaryContact.name")} data-testid="secondaryContact.name" />
-          <Input placeholder="Rôle" {...form.register("secondaryContact.role")} data-testid="secondaryContact.role" />
-          <Input placeholder="Téléphone" {...form.register("secondaryContact.phone")} data-testid="secondaryContact.phone" />
-          <Input placeholder="Email" {...form.register("secondaryContact.email")} data-testid="secondaryContact.email" />
+          <div className="space-y-2">
+            <Label htmlFor="secondaryContact.name">Nom</Label>
+            <Input id="secondaryContact.name" placeholder="Nom" {...form.register("secondaryContact.name")} data-testid="secondaryContact.name" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="secondaryContact.role">Rôle</Label>
+            <Input id="secondaryContact.role" placeholder="Rôle" {...form.register("secondaryContact.role")} data-testid="secondaryContact.role" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="secondaryContact.phone">Téléphone</Label>
+            <Input id="secondaryContact.phone" placeholder="Téléphone" {...form.register("secondaryContact.phone")} data-testid="secondaryContact.phone" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="secondaryContact.email">Email</Label>
+            <Input id="secondaryContact.email" placeholder="Email" {...form.register("secondaryContact.email")} data-testid="secondaryContact.email" />
+          </div>
           {form.formState.errors.secondaryContact && (
-            <p className="text-destructive text-sm">{form.formState.errors.secondaryContact.message}</p>
+            <p className="text-destructive text-sm col-span-2">{form.formState.errors.secondaryContact.message}</p>
           )}
         </CardContent>
       </Card>
@@ -278,10 +287,22 @@ const ContactForm = ({
         <CardContent className="space-y-4">
           {additionalContacts.map((field, idx) => (
             <div key={field.id} className="grid gap-2 md:grid-cols-4 items-end">
-              <Input placeholder="Nom" {...form.register(`additionalContacts.${idx}.name` as const)} />
-              <Input placeholder="Rôle" {...form.register(`additionalContacts.${idx}.role` as const)} />
-              <Input placeholder="Téléphone" {...form.register(`additionalContacts.${idx}.phone` as const)} />
-              <Input placeholder="Email" {...form.register(`additionalContacts.${idx}.email` as const)} />
+              <div className="space-y-2">
+                <Label htmlFor={`additionalContacts.${idx}.name`}>Nom</Label>
+                <Input id={`additionalContacts.${idx}.name`} placeholder="Nom" {...form.register(`additionalContacts.${idx}.name` as const)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`additionalContacts.${idx}.role`}>Rôle</Label>
+                <Input id={`additionalContacts.${idx}.role`} placeholder="Rôle" {...form.register(`additionalContacts.${idx}.role` as const)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`additionalContacts.${idx}.phone`}>Téléphone</Label>
+                <Input id={`additionalContacts.${idx}.phone`} placeholder="Téléphone" {...form.register(`additionalContacts.${idx}.phone` as const)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`additionalContacts.${idx}.email`}>Email</Label>
+                <Input id={`additionalContacts.${idx}.email`} placeholder="Email" {...form.register(`additionalContacts.${idx}.email` as const)} />
+              </div>
               <Button
                 type="button"
                 variant="ghost"
@@ -301,12 +322,30 @@ const ContactForm = ({
           <CardTitle>Réseaux sociaux</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-3">
-          <Input placeholder="Instagram" {...form.register("social.instagramHandle")} />
-          <Input placeholder="Followers IG" type="number" {...form.register("social.instagramFollowers", { valueAsNumber: true })} />
-          <Input placeholder="TikTok" {...form.register("social.tikTokHandle")} />
-          <Input placeholder="Followers TikTok" type="number" {...form.register("social.tikTokFollowers", { valueAsNumber: true })} />
-          <Input placeholder="LinkedIn URL" {...form.register("social.linkedInProfile")} />
-          <Input placeholder="Connexions LinkedIn" type="number" {...form.register("social.linkedInConnections", { valueAsNumber: true })} />
+          <div className="space-y-2">
+            <Label htmlFor="social.instagramHandle">Instagram</Label>
+            <Input id="social.instagramHandle" placeholder="Instagram" {...form.register("social.instagramHandle")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="social.instagramFollowers">Followers IG</Label>
+            <Input id="social.instagramFollowers" type="number" placeholder="Followers IG" {...form.register("social.instagramFollowers", { valueAsNumber: true })} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="social.tikTokHandle">TikTok</Label>
+            <Input id="social.tikTokHandle" placeholder="TikTok" {...form.register("social.tikTokHandle")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="social.tikTokFollowers">Followers TikTok</Label>
+            <Input id="social.tikTokFollowers" type="number" placeholder="Followers TikTok" {...form.register("social.tikTokFollowers", { valueAsNumber: true })} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="social.linkedInProfile">LinkedIn URL</Label>
+            <Input id="social.linkedInProfile" placeholder="LinkedIn URL" {...form.register("social.linkedInProfile")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="social.linkedInConnections">Connexions LinkedIn</Label>
+            <Input id="social.linkedInConnections" type="number" placeholder="Connexions LinkedIn" {...form.register("social.linkedInConnections", { valueAsNumber: true })} />
+          </div>
         </CardContent>
       </Card>
 
@@ -315,16 +354,29 @@ const ContactForm = ({
           <CardTitle>Rendez-vous</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 md:grid-cols-2">
-          <Input placeholder="Date" type="datetime-local" {...form.register("appointment.date")} data-testid="appointment.date" />
-          <Textarea placeholder="Résumé" {...form.register("appointment.summary")} data-testid="appointment.summary" />
-          <Input placeholder="Prochain rdv" type="datetime-local" {...form.register("appointment.nextDate")} />
-          <Input placeholder="Objectif prochain rdv" {...form.register("appointment.nextObjective")} />
-          <label className="flex items-center gap-2 text-sm font-medium col-span-2">
-            <input type="checkbox" {...form.register("appointment.whatsappFollowUp")} data-testid="appointment.whatsappFollowUp" />
-            Relancer via WhatsApp
-          </label>
-        </CardContent>
-        {conflicts.length > 0 && (
+          <div className="space-y-2">
+            <Label htmlFor="appointment.date">Date</Label>
+            <Input id="appointment.date" placeholder="Date" type="datetime-local" {...form.register("appointment.date")} data-testid="appointment.date" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="appointment.summary">Résumé</Label>
+            <Textarea id="appointment.summary" placeholder="Résumé" {...form.register("appointment.summary")} data-testid="appointment.summary" />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="appointment.nextDate">Prochain rdv</Label>
+            <Input id="appointment.nextDate" placeholder="Prochain rdv" type="datetime-local" {...form.register("appointment.nextDate")} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="appointment.nextObjective">Objectif prochain rdv</Label>
+            <Input id="appointment.nextObjective" placeholder="Objectif prochain rdv" {...form.register("appointment.nextObjective")} />
+          </div>
+          <div className="col-span-2">
+            <label className="flex items-center gap-2 text-sm font-medium">
+              <input type="checkbox" {...form.register("appointment.whatsappFollowUp")} data-testid="appointment.whatsappFollowUp" />
+              Relancer via WhatsApp
+            </label>
+          </div>
+          {conflicts.length > 0 && (
           <div className="px-6 pb-4 space-y-2">
             {conflicts.map((c) => (
               <Alert key={`${c.code}-${c.message}`} variant={c.code === "TIME_OVERLAP" ? "destructive" : "default"}>
@@ -335,6 +387,7 @@ const ContactForm = ({
             ))}
           </div>
         )}
+        </CardContent>
       </Card>
 
       <Card>
@@ -347,9 +400,18 @@ const ContactForm = ({
         <CardContent className="space-y-3">
           {extraAppointments.map((field, idx) => (
             <div key={field.id} className="grid gap-2 md:grid-cols-3 items-end">
-              <Input placeholder="Date" type="datetime-local" {...form.register(`additionalAppointments.${idx}.date` as const)} />
-              <Input placeholder="Résumé" {...form.register(`additionalAppointments.${idx}.summary` as const)} />
-              <Input placeholder="Objectif" {...form.register(`additionalAppointments.${idx}.objective` as const)} />
+              <div className="space-y-2">
+                <Label htmlFor={`additionalAppointments.${idx}.date`}>Date</Label>
+                <Input id={`additionalAppointments.${idx}.date`} placeholder="Date" type="datetime-local" {...form.register(`additionalAppointments.${idx}.date` as const)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`additionalAppointments.${idx}.summary`}>Résumé</Label>
+                <Input id={`additionalAppointments.${idx}.summary`} placeholder="Résumé" {...form.register(`additionalAppointments.${idx}.summary` as const)} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor={`additionalAppointments.${idx}.objective`}>Objectif</Label>
+                <Input id={`additionalAppointments.${idx}.objective`} placeholder="Objectif" {...form.register(`additionalAppointments.${idx}.objective` as const)} />
+              </div>
               <Button type="button" variant="ghost" size="sm" onClick={() => removeAppointment(idx)} className="md:col-span-3 justify-start">
                 Supprimer
               </Button>
