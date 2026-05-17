@@ -1702,9 +1702,13 @@ app.use((err, req, res, next) => {
 export { app };
 export default app;
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`[${new Date().toISOString()}] API server running on http://localhost:${PORT}`);
-  console.log(`[${new Date().toISOString()}] Health check available at http://localhost:${PORT}/api/health`);
-  console.log(`[${new Date().toISOString()}] Database setup check available at http://localhost:${PORT}/api/setup/database`);
-});
+// Start server (en local) ; en serverless (Netlify), la fonction appelle simplement handler()
+const isServerless = process.env.NETLIFY === 'true' || process.env.AWS_LAMBDA_RUNTIME_API;
+if (!isServerless) {
+  startBackgroundSync();
+  app.listen(PORT, () => {
+    console.log(`[${new Date().toISOString()}] API server running on http://localhost:${PORT}`);
+    console.log(`[${new Date().toISOString()}] Health check available at http://localhost:${PORT}/api/health`);
+    console.log(`[${new Date().toISOString()}] Database setup check available at http://localhost:${PORT}/api/setup/database`);
+  });
+}
