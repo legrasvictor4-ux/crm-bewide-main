@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient, type UseMutationOptions } from "
 import type { Client, CreateClientInput, FetchClientsParams, UpdateClientInput } from "@/services/clients";
 import { createClient, deleteClient, fetchClients, updateClient } from "@/services/clients";
 import { useSupabaseReady } from "@/hooks/useSupabaseReady";
+import { ApiError } from "@/types/api";
 
 const CLIENTS_KEY = ["clients"];
 
@@ -56,6 +57,18 @@ export function useDeleteClient() {
       queryClient.invalidateQueries({ queryKey: CLIENTS_KEY });
       queryClient.invalidateQueries({ queryKey: ["analytics-clients"] });
       queryClient.invalidateQueries({ queryKey: ["agenda"] });
+    },
+    onError: (error, id) => {
+      if (error instanceof ApiError && error.code === "CLIENT_NOT_FOUND") {
+        queryClient.setQueriesData({ queryKey: CLIENTS_KEY }, (old: unknown) => {
+          if (!Array.isArray(old)) return old;
+          return old.filter((item: any) => item?.id !== id);
+        });
+        queryClient.invalidateQueries({ queryKey: CLIENTS_KEY });
+        queryClient.invalidateQueries({ queryKey: ["analytics-clients"] });
+        queryClient.invalidateQueries({ queryKey: ["agenda"] });
+        return;
+      }
     },
   });
 }

@@ -16,6 +16,7 @@ import {
   DrawerClose,
 } from "@/components/ui/drawer";
 import { useDeleteClient } from "@/hooks/use-clients";
+import { ApiError } from "@/types/api";
 import { toast } from "sonner";
 import { useIsMounted } from "@/hooks/useSafeEffect";
 import { useCleanup } from "@/hooks/useCleanup";
@@ -40,7 +41,18 @@ const ClientRowActions = ({ clientId, clientName, onDeleted }: ClientRowActionsP
   }, [mounted]);
 
   const handleDelete = useCallback(async () => {
-    await deleteClient(clientId);
+    try {
+      await deleteClient(clientId);
+    } catch (err) {
+      if (!mounted.current) return;
+      if (err instanceof ApiError && err.code === "CLIENT_NOT_FOUND") {
+        toast.error("Client déjà supprimé");
+      } else {
+        toast.error("Erreur lors de la suppression");
+      }
+      setSheetOpen(false);
+      return;
+    }
     if (!mounted.current) return;
     toast.success("Client supprimé");
     onDeleted?.();

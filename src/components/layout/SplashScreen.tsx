@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, useAnimationControls } from "framer-motion";
 import { LOGO_SRC } from "@/assets/logoBase64";
 
 //
-// Logo : base64 (embarqué dans le code) ou fichier public
+// Logo : base64 (embarqu├® dans le code) ou fichier public
 const LOGO = LOGO_SRC || "/myclerk-logo.png";
 
 interface Props { onDone?: () => void; }
@@ -21,7 +21,7 @@ export default function SplashScreen({ onDone }: Props) {
     return () => { isMounted.current = false; };
   }, []);
 
-  // ─── Dismiss ─────────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇÔöÇ Dismiss ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const dismiss = useCallback(() => {
     if (doneRef.current) return;
     doneRef.current = true;
@@ -31,10 +31,10 @@ export default function SplashScreen({ onDone }: Props) {
     }
   }, [onDone, isMounted]);
 
-  // Toujours la version la plus récente, sans être dans les deps de l'effet
+  // Toujours la version la plus r├®cente, sans ├¬tre dans les deps de l'effet
   dismissRef.current = dismiss;
 
-  // ─── Séquence animation — ne tourne qu'UNE seule fois ───────────────────────
+  // ÔöÇÔöÇÔöÇ S├®quence animation ÔÇö ne tourne qu'UNE seule fois ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   useEffect(() => {
     let dead = false;
 
@@ -59,9 +59,9 @@ export default function SplashScreen({ onDone }: Props) {
     })();
 
     return () => { dead = true; };
-  }, [controls]); // controls seul — dismiss via ref, jamais redémarré
+  }, [controls]); // controls seul ÔÇö dismiss via ref, jamais red├®marr├®
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇÔöÇ Render ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   return (
     <motion.div
       onClick={dismiss}
@@ -71,7 +71,7 @@ export default function SplashScreen({ onDone }: Props) {
         position:       "fixed",
         inset:          0,
         zIndex:         9999,
-        // Fond blanc — le logo (PNG fond blanc) se fond naturellement
+        // Fond blanc ÔÇö le logo (PNG fond blanc) se fond naturellement
         background:     "#F8F8FA",
         display:        "flex",
         flexDirection:  "column",
@@ -81,7 +81,7 @@ export default function SplashScreen({ onDone }: Props) {
         overflow:       "hidden",
       }}
     >
-      {/* Halo ambiant très subtil — profondeur sans bruit */}
+      {/* Halo ambiant tr├¿s subtil ÔÇö profondeur sans bruit */}
       <div
         aria-hidden
         style={{
@@ -95,7 +95,7 @@ export default function SplashScreen({ onDone }: Props) {
         }}
       />
 
-      {/* ── VRAI LOGO — image PNG, aucune reproduction ────────────────────────── */}
+      {/* ÔöÇÔöÇ VRAI LOGO ÔÇö image PNG, aucune reproduction ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ */}
       <motion.img
         src={LOGO}
         alt="myclerk"
@@ -112,7 +112,7 @@ export default function SplashScreen({ onDone }: Props) {
           pointerEvents: "none",
         }}
         onError={(e) => {
-          // Image introuvable → masquer sans crash
+          // Image introuvable ÔåÆ masquer sans crash
           e.currentTarget.style.display = "none";
         }}
       />

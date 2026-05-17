@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,7 +14,7 @@ type Client = Tables<"clients">;
 async function fetchAnalyticsData() {
   const { data, error } = await supabase
     .from("clients")
-    .select("id, status, lead_score, date_created")
+    .select("id, status, lead_score, date_created, city")
     .order("date_created", { ascending: true });
   if (error) throw error;
   return data as Client[];
@@ -36,10 +36,11 @@ function buildLineData(clients: Client[]) {
 
 function buildRadarData(clients: Client[]) {
   const statuses: Record<string, string> = {
-    prospect:       "Prospects",
-    activé:         "Activés",
-    "client actif": "Clients actifs",
-    perdu:          "Perdus",
+    new:          "Nouveaux",
+    pending:      "En cours",
+    success:      "Sign├®s",
+    lost:         "Perdus",
+    to_recontact: "├Ç recontacter",
   };
   return Object.entries(statuses).map(([key, label]) => ({
     channel: label,
@@ -48,8 +49,8 @@ function buildRadarData(clients: Client[]) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  prospect: "Prospect", activé: "Activé",
-  "client actif": "Client actif", perdu: "Perdu",
+  new: "Nouveau", pending: "En cours", success: "Sign├®",
+  lost: "Perdu", to_recontact: "├Ç recontacter",
 };
 
 const Analytics = () => {
@@ -59,9 +60,9 @@ const Analytics = () => {
     staleTime: 60_000,
   });
 
-  // ── KPIs ─────────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ KPIs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const total      = clients.length;
-  const qualified  = clients.filter(c => (c.lead_score ?? 0) >= 60 || c.status === "client actif").length;
+  const qualified  = clients.filter(c => (c.lead_score ?? 0) >= 60 || c.status === "success").length;
   const avgScore   = total > 0
     ? Math.round(clients.reduce((s, c) => s + (c.lead_score ?? 0), 0) / total)
     : 0;
@@ -75,21 +76,21 @@ const Analytics = () => {
   const newLastMonth = clients.filter(c => c.date_created >= lastMonth && c.date_created <= endLastMonth).length;
   const newDelta     = newLastMonth > 0 ? ((newThisMonth - newLastMonth) / newLastMonth * 100).toFixed(1) : null;
 
-  const successCount = clients.filter(c => c.status === "client actif").length;
+  const successCount = clients.filter(c => c.status === "success").length;
   const convRate     = total > 0 ? ((successCount / total) * 100).toFixed(1) : "0";
 
   const kpis = [
     {
       title: "Total contacts",
       value: total.toLocaleString("fr-FR"),
-      change: newDelta ? `${parseFloat(newDelta) >= 0 ? "+" : ""}${newDelta}%` : "—",
+      change: newDelta ? `${parseFloat(newDelta) >= 0 ? "+" : ""}${newDelta}%` : "ÔÇö",
       up: newDelta ? parseFloat(newDelta) >= 0 : true,
       sub: "vs mois dernier",
     },
     {
-      title: "Leads qualifiés (score ≥ 60)",
+      title: "Leads qualifi├®s (score ÔëÑ 60)",
       value: qualified.toLocaleString("fr-FR"),
-      change: total > 0 ? `${((qualified / total) * 100).toFixed(0)}%` : "—",
+      change: total > 0 ? `${((qualified / total) * 100).toFixed(0)}%` : "ÔÇö",
       up: true,
       sub: "du total",
     },
@@ -103,27 +104,25 @@ const Analytics = () => {
     {
       title: "Taux de conversion",
       value: `${convRate}%`,
-      change: successCount > 0 ? `${successCount} signés` : "Aucun signé",
+      change: successCount > 0 ? `${successCount} sign├®s` : "Aucun sign├®",
       up: successCount > 0,
-      sub: "statut Signé",
+      sub: "statut Sign├®",
     },
   ];
 
-  // ── Charts ────────────────────────────────────────────────────────────────
+  // ÔöÇÔöÇ Charts ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const lineData  = buildLineData(clients);
   const radarData = buildRadarData(clients);
 
-  // ── Stats par statut ─────────────────────────────────────────────────────
-
-  // ── Stats par arrondissement + stats par statut ──────────────────────────
-  const arrondissementCounts = clients.reduce<Record<string, number>>((acc, c) => {
-    const key = c.arrondissement || "Non renseigné";
+  // ÔöÇÔöÇ Top ville + stats par statut ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+  const cityCounts = clients.reduce<Record<string, number>>((acc, c) => {
+    const key = c.city || "Inconnu";
     acc[key] = (acc[key] || 0) + 1;
     return acc;
   }, {});
-  const topArrondissement = Object.entries(arrondissementCounts).sort((a, b) => b[1] - a[1])[0];
+  const topCity = Object.entries(cityCounts).sort((a, b) => b[1] - a[1])[0];
 
-  const statusCounts = (["prospect", "activé", "client actif", "perdu"] as const).map(s => ({
+  const statusCounts = (["new", "pending", "success", "lost", "to_recontact"] as const).map(s => ({
     label: STATUS_LABELS[s],
     value: clients.filter(c => c.status === s).length,
     max: total,
@@ -143,7 +142,7 @@ const Analytics = () => {
         <div>
           <h1 className="text-2xl font-semibold">Analytics</h1>
           <p className="text-sm text-muted-foreground">
-            Données réelles de votre base — {total} contacts chargés.
+            Donn├®es r├®elles de votre base ÔÇö {total} contacts charg├®s.
           </p>
         </div>
       </div>
@@ -173,23 +172,23 @@ const Analytics = () => {
 
       {/* Charts row */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Line chart — contacts créés ces 14 derniers jours */}
+        {/* Line chart ÔÇö contacts cr├®├®s ces 14 derniers jours */}
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
-            <CardTitle>Contacts créés — 14 derniers jours</CardTitle>
+            <CardTitle>Contacts cr├®├®s ÔÇö 14 derniers jours</CardTitle>
             <p className="text-xs text-muted-foreground">Par date d'ajout dans la base</p>
           </CardHeader>
           <CardContent className="h-72">
             {lineData.every(d => d.value === 0) ? (
               <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                Aucune donnée sur cette période
+                Aucune donn├®e sur cette p├®riode
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData}>
                   <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
                   <YAxis stroke="#94a3b8" allowDecimals={false} />
-                  <Tooltip formatter={(v: number) => [`${v} contact(s)`, "Ajoutés"]} />
+                  <Tooltip formatter={(v: number) => [`${v} contact(s)`, "Ajout├®s"]} />
                   <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2.4} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -197,10 +196,10 @@ const Analytics = () => {
           </CardContent>
         </Card>
 
-        {/* Radar chart — répartition par statut */}
+        {/* Radar chart ÔÇö r├®partition par statut */}
         <Card className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
-            <CardTitle>Répartition par statut</CardTitle>
+            <CardTitle>R├®partition par statut</CardTitle>
           </CardHeader>
           <CardContent className="h-72">
             {total === 0 ? (
@@ -226,17 +225,17 @@ const Analytics = () => {
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
-              <p className="text-xs text-muted-foreground">Top arrondissement</p>
-              <p className="text-sm font-semibold">{topArrondissement?.[0] ?? "—"}</p>
-              <p className="text-xs text-muted-foreground">{topArrondissement?.[1] ?? 0} contact(s)</p>
+              <p className="text-xs text-muted-foreground">Top ville</p>
+              <p className="text-sm font-semibold">{topCity?.[0] ?? "ÔÇö"}</p>
+              <p className="text-xs text-muted-foreground">{topCity?.[1] ?? 0} contact(s)</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
               <p className="text-xs text-muted-foreground">Nouveaux ce mois</p>
               <p className="text-sm font-semibold">{newThisMonth}</p>
-              <p className="text-xs text-muted-foreground">contacts ajoutés</p>
+              <p className="text-xs text-muted-foreground">contacts ajout├®s</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
-              <p className="text-xs text-muted-foreground">Contacts signés</p>
+              <p className="text-xs text-muted-foreground">Contacts sign├®s</p>
               <p className="text-sm font-semibold">{successCount}</p>
               <p className="text-xs text-muted-foreground">{convRate}% de conversion</p>
             </div>
