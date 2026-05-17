@@ -2,10 +2,37 @@ import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient, type UseMutationOptions } from "@tanstack/react-query";
 import type { Client, CreateClientInput, FetchClientsParams, UpdateClientInput } from "@/services/clients";
 import { createClient, deleteClient, fetchClients, updateClient } from "@/services/clients";
+import { createAgendaEvent } from "@/services/agenda";
 import { useSupabaseReady } from "@/hooks/useSupabaseReady";
 import { ApiError } from "@/types/api";
+import type { CreateAgendaEvent } from "@/types/agenda";
 
 const CLIENTS_KEY = ["clients"];
+
+function createRelanceAgendaEvent(client: Client): void {
+  if (!client.date_relance || !client.id || !client.name) return;
+  const startDate = new Date(client.date_relance);
+  if (isNaN(startDate.getTime())) return;
+  startDate.setHours(10, 0, 0, 0);
+  const endDate = new Date(startDate);
+  endDate.setHours(11, 0, 0, 0);
+  const agendaEvent: CreateAgendaEvent = {
+    clientId: client.id,
+    title: `Relance - ${client.name}`,
+    type: "rappel",
+    start: startDate.toISOString(),
+    end: endDate.toISOString(),
+    durationMinutes: 60,
+    bufferMinutes: 10,
+    opportunityScore: 0,
+    priority: "normal",
+    description: `Relance automatique depuis la fiche client ${client.name}`,
+    address: client.address ?? "",
+  };
+  createAgendaEvent(agendaEvent).catch((err) =>
+    console.error("[AUTO-AGENDA] Échec création relance:", err)
+  );
+}
 
 export function useClients(params: FetchClientsParams) {
   const ready = useSupabaseReady();
@@ -24,10 +51,11 @@ export function useCreateClient(options?: UseMutationOptions<Client, Error, Crea
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: CreateClientInput) => createClient(payload),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: CLIENTS_KEY });
       queryClient.invalidateQueries({ queryKey: ["analytics-clients"] });
       queryClient.invalidateQueries({ queryKey: ["agenda"] });
+      createRelanceAgendaEvent(data);
     },
     ...options,
   });
@@ -37,10 +65,11 @@ export function useUpdateClient() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateClientInput }) => updateClient(id, data),
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: CLIENTS_KEY });
       queryClient.invalidateQueries({ queryKey: ["analytics-clients"] });
       queryClient.invalidateQueries({ queryKey: ["agenda"] });
+      createRelanceAgendaEvent(data);
     },
   });
 }

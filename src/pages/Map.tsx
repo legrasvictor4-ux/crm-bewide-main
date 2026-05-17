@@ -25,17 +25,18 @@ const Map = () => {
         setIsLoading(true);
         const clients = await fetchClients({ filter: "all" });
         const mapped = (clients || []).map((client) => {
-          const metadata = (client as { metadata?: Record<string, unknown> }).metadata || {};
-          const rawLat = (metadata as Record<string, unknown>).lat ?? (metadata as Record<string, unknown>).latitude;
-          const rawLng = (metadata as Record<string, unknown>).lng ?? (metadata as Record<string, unknown>).longitude;
+          const c = client as Record<string, unknown>;
+          const metadata = (c.metadata as Record<string, unknown>) || {};
+          const rawLat = c.latitude ?? metadata.lat ?? metadata.latitude ?? null;
+          const rawLng = c.longitude ?? metadata.lng ?? metadata.longitude ?? null;
           const latNum = typeof rawLat === "number" ? rawLat : Number(rawLat);
           const lngNum = typeof rawLng === "number" ? rawLng : Number(rawLng);
           const hasCoords = Number.isFinite(latNum) && Number.isFinite(lngNum);
-          const address = [client.address, client.postal_code].filter(Boolean).join(" ") || null;
+          const address = [c.address, c.postal_code].filter(Boolean).join(" ") || null;
 
           return {
-            id: client.id,
-            name: client.company || `${client.first_name || ""} ${client.last_name}`.trim() || "Client",
+            id: c.id as string,
+            name: (c.name as string) || `${c.first_name || ""} ${c.last_name || ""}`.trim() || "Client",
             address,
             lat: hasCoords ? latNum : null,
             lng: hasCoords ? lngNum : null,

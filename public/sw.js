@@ -151,3 +151,43 @@ self.addEventListener('message', (event) => {
     caches.delete(API_CACHE);
   }
 });
+
+// ─── Push notifications ───────────────────────────────────────────────────────
+self.addEventListener('push', (event) => {
+  let data = { title: 'BeWide', body: '', icon: '/icon-192.png', tag: 'default', url: '/' };
+  try {
+    const payload = event.data?.json();
+    if (payload) data = { ...data, ...payload };
+  } catch {
+    data.body = event.data?.text() || '';
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: '/icon-192.png',
+    tag: data.tag,
+    data: { url: data.url },
+    vibrate: [200, 100, 200],
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url || '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      const matching = windowClients.find((c) => c.url.includes(self.location.origin));
+      if (matching) {
+        matching.focus();
+        if (matching.url !== url) matching.navigate(url);
+      } else {
+        clients.openWindow(url);
+      }
+    })
+  );
+});

@@ -31,6 +31,8 @@ interface FormData {
   phone:              string;
   email:              string;
   address:            string;
+  latitude:           number | null;
+  longitude:          number | null;
   offre_cible:        OffreCible | "";
   canal_acquisition:  CanalAcquisition | "";
   date_relance:       string;
@@ -132,6 +134,7 @@ const EMPTY: FormData = {
   name: "", status: "prospect",
   statut_opportunite: "", priorite: "", role: "",
   phone: "", email: "", address: "",
+  latitude: null, longitude: null,
   offre_cible: "", canal_acquisition: "terrain",
   date_relance: "", motif_objection: "",
 };
@@ -163,6 +166,48 @@ export default function AddClientDialog({ open, onOpenChange, onSuccess }: Props
       }
     };
   }, []);
+
+  const addressRef = useRef<HTMLInputElement>(null);
+  const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const geocodeAddress = useCallback((placeId: string) => {
+    if (!(window as any).google?.maps?.places) return;
+    const service = new (window as any).google.maps.places.PlacesService(document.createElement('div'));
+    service.getDetails({ placeId, fields: ['geometry', 'formatted_address'] }, (result: any, status: string) => {
+      if (status === 'OK' && result?.geometry?.location) {
+        const lat = result.geometry.location.lat();
+        const lng = result.geometry.location.lng();
+        setForm(prev => ({ ...prev, address: result.formatted_address || prev.address, latitude: lat, longitude: lng }));
+      }
+    });
+  }, []);
+
+  const handleAddressChange = useCallback((value: string) => {
+    set("address", value);
+    setForm(prev => ({ ...prev, latitude: null, longitude: null }));
+    if (value.length < 3 || !(window as any).google?.maps?.places) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+    const service = new (window as any).google.maps.places.AutocompleteService();
+    service.getPlacePredictions({ input: value, types: ['address'], language: 'fr', componentRestrictions: { country: 'fr' } }, (predictions: any[], status: string) => {
+      if (status === 'OK' && predictions) {
+        setSuggestions(predictions);
+        setShowSuggestions(true);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    });
+  }, []);
+
+  const handleSelectSuggestion = useCallback((suggestion: google.maps.places.AutocompletePrediction) => {
+    setShowSuggestions(false);
+    setSuggestions([]);
+    geocodeAddress(suggestion.place_id);
+  }, [geocodeAddress]);
 
   const mutation = useCreateClient({
     onSuccess: () => {
@@ -210,6 +255,8 @@ export default function AddClientDialog({ open, onOpenChange, onSuccess }: Props
     phone:              f.phone.trim()        || null,
     email:              f.email.trim()        || null,
     address:            f.address.trim()      || null,
+    latitude:           f.latitude,
+    longitude:          f.longitude,
     offre_cible:        f.offre_cible         || null,
     canal_acquisition:  f.canal_acquisition   || null,
     date_relance:       f.date_relance.trim() || null,
@@ -432,11 +479,34 @@ export default function AddClientDialog({ open, onOpenChange, onSuccess }: Props
           {more && (
             <div className="space-y-3 border-t pt-3">
 
-              <div className="space-y-1">
+              <div className="space-y-1 relative">
                 <Label htmlFor="address">Adresse</Label>
-                <Input id="address" value={form.address}
-                  onChange={e => set("address", e.target.value)}
-                  placeholder="12 rue de la Roquette" disabled={mutation.isPending} />
+                <Input id="address" ref={addressRef} value={form.address}
+                  onChange={e => handleAddressChange(e.target.value)}
+                  placeholder="12 rue de la Roquette" disabled={mutation.isPending}
+                  autoComplete="off" />
+                {showSuggestions && suggestions.length > 0 && (
+                  <ul className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border rounded-lg shadow-lg max-h-48 overflow-y-auto text-sm">
+                    {suggestions.map(s => (
+                      <li key={s.place_id}
+                        className="px-3 py-2 hover:bg-gray-100 cursor-pointer border-b last:border-b-0"
+                        onClick={() => handleSelectSuggestion(s)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleSelectSuggestion(s); }}
+                        tabIndex={0}
+                        role="option"
+                        aria-selected={false}
+                      >
+                        <span className="text-foreground">{s.structured_formatting?.main_text || s.description}</span>
+                        {s.structured_formatting?.secondary_text && (
+                          <span className="text-muted-foreground text-xs ml-1"> - {s.structured_formatting.secondary_text}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {form.latitude && form.longitude && (
+                  <p className="text-xs text-green-600">✓ Coordonnées géocodées</p>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">

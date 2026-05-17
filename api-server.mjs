@@ -1444,7 +1444,7 @@ app.post('/api/agenda/sync/google/disconnect', (req, res) => {
   }
 });
 
-// POST /api/agenda/sync/run (manual full sync)
+// POST /api/agenda/sync/run (manual full sync — process queue against Google Calendar API)
 app.post('/api/agenda/sync/run', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'] || 'default';
@@ -1453,26 +1453,89 @@ app.post('/api/agenda/sync/run', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Google Calendar non connecté' });
     }
 
-    const unsynced = [...agendaEvents.values()]
-      .filter((e) => e.userId === userId && e.syncStatus === 'pending');
+    const { createEvent, updateEvent, deleteEvent } = await import('./src/backend/agenda/googleSync.js');
+    const pending = getPendingOps().filter((o) => o.userId === userId);
+    let synced = 0;
+    let failed = 0;
 
-    for (const event of unsynced) {
+    for (const op of pending) {
       try {
-        await enqueue({ userId, action: 'created', eventId: event.id, payload: event });
-        agendaEvents.set(event.id, { ...event, syncStatus: 'synced', lastSyncAt: new Date().toISOString() });
+        switch (op.action) {
+          case 'created':
+          case 'moved': {
+            const created = await createEvent(userId, op.payload);
+            agendaEvents.set(op.eventId, { ...agendaEvents.get(op.eventId), googleEventId: created.id, syncStatus: 'synced', lastSyncAt: new Date().toISOString() });
+            break;
+          }
+          case 'updated': {
+            if (op.googleEventId) {
+              await updateEvent(userId, op.googleEventId, op.payload);
+            }
+            agendaEvents.set(op.eventId, { ...agendaEvents.get(op.eventId), syncStatus: 'synced', lastSyncAt: new Date().toISOString() });
+            break;
+          }
+          case 'deleted': {
+            if (op.googleEventId) {
+              try { await deleteEvent(userId, op.googleEventId); } catch (_) {}
+            }
+            break;
+          }
+        }
+        markCompleted(op.id);
+        synced++;
       } catch (e) {
-        agendaEvents.set(event.id, { ...event, syncStatus: 'failed' });
+        markFailed(op.id, e.message);
+        failed++;
       }
     }
 
     settings.updatedAt = new Date().toISOString();
     agendaSettings.set(userId, settings);
 
-    res.json({ success: true, eventsSynced: unsynced.length });
+    res.json({ success: true, eventsSynced: synced, eventsFailed: failed });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+// Background sync processor every 5 minutes
+let syncInterval;
+function startBackgroundSync() {
+  if (syncInterval) clearInterval(syncInterval);
+  syncInterval = setInterval(async () => {
+    for (const [userId, settings] of agendaSettings) {
+      if (settings.provider !== 'google' || !settings.googleRefreshToken) continue;
+      const { createEvent, updateEvent, deleteEvent } = await import('./src/backend/agenda/googleSync.js').catch(() => ({}));
+      if (!createEvent) continue;
+      const pending = getPendingOps().filter((o) => o.userId === userId);
+      for (const op of pending) {
+        try {
+          switch (op.action) {
+            case 'created':
+            case 'moved': {
+              const created = await createEvent(userId, op.payload);
+              agendaEvents.set(op.eventId, { ...agendaEvents.get(op.eventId), googleEventId: created.id, syncStatus: 'synced', lastSyncAt: new Date().toISOString() });
+              break;
+            }
+            case 'updated': {
+              if (op.googleEventId) await updateEvent(userId, op.googleEventId, op.payload);
+              agendaEvents.set(op.eventId, { ...agendaEvents.get(op.eventId), syncStatus: 'synced', lastSyncAt: new Date().toISOString() });
+              break;
+            }
+            case 'deleted': {
+              if (op.googleEventId) try { await deleteEvent(userId, op.googleEventId); } catch (_) {}
+              break;
+            }
+          }
+          markCompleted(op.id);
+        } catch {
+          markFailed(op.id, 'Sync retry later');
+        }
+      }
+    }
+  }, 300000);
+}
+startBackgroundSync();
 
 // ─── Agenda Settings ────────────────────────────────────────────────────
 
