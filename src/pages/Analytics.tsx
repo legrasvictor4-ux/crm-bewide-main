@@ -38,9 +38,9 @@ function buildRadarData(clients: Client[]) {
   const statuses: Record<string, string> = {
     new:          "Nouveaux",
     pending:      "En cours",
-    success:      "Sign├®s",
+    success:      "Signés",
     lost:         "Perdus",
-    to_recontact: "├Ç recontacter",
+    to_recontact: "À recontacter",
   };
   return Object.entries(statuses).map(([key, label]) => ({
     channel: label,
@@ -49,8 +49,8 @@ function buildRadarData(clients: Client[]) {
 }
 
 const STATUS_LABELS: Record<string, string> = {
-  new: "Nouveau", pending: "En cours", success: "Sign├®",
-  lost: "Perdu", to_recontact: "├Ç recontacter",
+  new: "Nouveau", pending: "En cours", success: "Signé",
+  lost: "Perdu", to_recontact: "À recontacter",
 };
 
 const Analytics = () => {
@@ -60,7 +60,6 @@ const Analytics = () => {
     staleTime: 60_000,
   });
 
-  // ÔöÇÔöÇ KPIs ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const total      = clients.length;
   const qualified  = clients.filter(c => (c.lead_score ?? 0) >= 60 || c.status === "success").length;
   const avgScore   = total > 0
@@ -83,14 +82,14 @@ const Analytics = () => {
     {
       title: "Total contacts",
       value: total.toLocaleString("fr-FR"),
-      change: newDelta ? `${parseFloat(newDelta) >= 0 ? "+" : ""}${newDelta}%` : "ÔÇö",
+      change: newDelta ? `${parseFloat(newDelta) >= 0 ? "+" : ""}${newDelta}%` : "—",
       up: newDelta ? parseFloat(newDelta) >= 0 : true,
       sub: "vs mois dernier",
     },
     {
-      title: "Leads qualifi├®s (score ÔëÑ 60)",
+      title: "Leads qualifiés (score ≥ 60)",
       value: qualified.toLocaleString("fr-FR"),
-      change: total > 0 ? `${((qualified / total) * 100).toFixed(0)}%` : "ÔÇö",
+      change: total > 0 ? `${((qualified / total) * 100).toFixed(0)}%` : "—",
       up: true,
       sub: "du total",
     },
@@ -104,17 +103,15 @@ const Analytics = () => {
     {
       title: "Taux de conversion",
       value: `${convRate}%`,
-      change: successCount > 0 ? `${successCount} sign├®s` : "Aucun sign├®",
+      change: successCount > 0 ? `${successCount} signés` : "Aucun signé",
       up: successCount > 0,
-      sub: "statut Sign├®",
+      sub: "statut Signé",
     },
   ];
 
-  // ÔöÇÔöÇ Charts ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const lineData  = buildLineData(clients);
   const radarData = buildRadarData(clients);
 
-  // ÔöÇÔöÇ Top ville + stats par statut ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
   const cityCounts = clients.reduce<Record<string, number>>((acc, c) => {
     const key = c.city || "Inconnu";
     acc[key] = (acc[key] || 0) + 1;
@@ -142,12 +139,11 @@ const Analytics = () => {
         <div>
           <h1 className="text-2xl font-semibold">Analytics</h1>
           <p className="text-sm text-muted-foreground">
-            Donn├®es r├®elles de votre base ÔÇö {total} contacts charg├®s.
+            Données réelles de votre base — {total} contacts chargés.
           </p>
         </div>
       </div>
 
-      {/* KPI cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {kpis.map((item) => (
           <Card key={item.title} className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
@@ -170,25 +166,23 @@ const Analytics = () => {
         ))}
       </div>
 
-      {/* Charts row */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Line chart ÔÇö contacts cr├®├®s ces 14 derniers jours */}
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
-            <CardTitle>Contacts cr├®├®s ÔÇö 14 derniers jours</CardTitle>
+            <CardTitle>Contacts créés — 14 derniers jours</CardTitle>
             <p className="text-xs text-muted-foreground">Par date d'ajout dans la base</p>
           </CardHeader>
           <CardContent className="h-72">
             {lineData.every(d => d.value === 0) ? (
               <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
-                Aucune donn├®e sur cette p├®riode
+                Aucune donnée sur cette période
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={lineData}>
                   <XAxis dataKey="label" stroke="#94a3b8" tick={{ fontSize: 11 }} />
                   <YAxis stroke="#94a3b8" allowDecimals={false} />
-                  <Tooltip formatter={(v: number) => [`${v} contact(s)`, "Ajout├®s"]} />
+                  <Tooltip formatter={(v: number) => [`${v} contact(s)`, "Ajoutés"]} />
                   <Line type="monotone" dataKey="value" stroke="#7c3aed" strokeWidth={2.4} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -196,10 +190,9 @@ const Analytics = () => {
           </CardContent>
         </Card>
 
-        {/* Radar chart ÔÇö r├®partition par statut */}
         <Card className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
-            <CardTitle>R├®partition par statut</CardTitle>
+            <CardTitle>Répartition par statut</CardTitle>
           </CardHeader>
           <CardContent className="h-72">
             {total === 0 ? (
@@ -219,30 +212,27 @@ const Analytics = () => {
         </Card>
       </div>
 
-      {/* Bottom row */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        {/* Top stats tiles */}
         <Card className="lg:col-span-2 border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardContent className="grid gap-4 md:grid-cols-3 pt-6">
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
               <p className="text-xs text-muted-foreground">Top ville</p>
-              <p className="text-sm font-semibold">{topCity?.[0] ?? "ÔÇö"}</p>
+              <p className="text-sm font-semibold">{topCity?.[0] ?? "—"}</p>
               <p className="text-xs text-muted-foreground">{topCity?.[1] ?? 0} contact(s)</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
               <p className="text-xs text-muted-foreground">Nouveaux ce mois</p>
               <p className="text-sm font-semibold">{newThisMonth}</p>
-              <p className="text-xs text-muted-foreground">contacts ajout├®s</p>
+              <p className="text-xs text-muted-foreground">contacts ajoutés</p>
             </div>
             <div className="rounded-lg bg-slate-50 p-4 dark:bg-slate-900/60">
-              <p className="text-xs text-muted-foreground">Contacts sign├®s</p>
+              <p className="text-xs text-muted-foreground">Contacts signés</p>
               <p className="text-sm font-semibold">{successCount}</p>
               <p className="text-xs text-muted-foreground">{convRate}% de conversion</p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Statuts breakdown */}
         <Card className="border-none bg-gradient-to-br from-slate-100 to-white dark:from-slate-900 dark:to-slate-950">
           <CardHeader>
             <CardTitle>Contacts par statut</CardTitle>
